@@ -42,13 +42,13 @@
 }
 
 .cursor-glow-layer {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background: radial-gradient(
-    550px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
-    rgba(202, 205, 54, 0.20) 20%, 
+    400px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
+    rgba(202, 205, 54, 0.20) 10%, 
     transparent 80%
   );
 }
@@ -80,7 +80,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   color: #fff;
-  box-shadow: 0 8px 24px rgba(41, 151, 255, 0.35);
+  box-shadow: 0 0px 24px rgba(150, 172, 177, 0.838);
 }
 
 
@@ -199,7 +199,7 @@
   background: var(--user-gradient);
   color: #fff;
   border-bottom-right-radius: 6px;
-  box-shadow: 0 12px 32px rgba(41, 151, 255, 0.22);
+  box-shadow: 0 12px 32px rgba(128, 132, 111, 0.401);
 }
 
 .message-bubble--bot {
@@ -371,12 +371,12 @@
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
-  box-shadow: 0 6px 20px rgba(41, 151, 255, 0.28);
+  box-shadow: 0 6px 20px rgba(128, 132, 111, 0.401);
 }
 
 .composer__send:hover:not(:disabled) {
   transform: scale(1.03);
-  box-shadow: 0 8px 28px rgba(41, 151, 255, 0.38);
+  box-shadow: 0 8px 28px rgba(128, 132, 111, 0.401);
 }
 
 .composer__send:active:not(:disabled) {

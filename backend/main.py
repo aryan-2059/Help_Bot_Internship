@@ -27,7 +27,7 @@ DETAILED_SYSTEM_PROMPT = (
     'The user asked for a detailed explanation. Provide a thorough, well-structured answer.'
 )
 
-CONCISE_MAX_TOKENS = 80
+CONCISE_MAX_TOKENS = 120
 DETAILED_MAX_TOKENS = 1024
 
 chat_history = []
