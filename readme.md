@@ -37,37 +37,42 @@ The assistant is engineered with a split-personality strategy: it delivers light
 
 3. **Python** Python 3.10+ installed.
 
+
+
 ## Installation setup
 
-1.**Backend setup:**
+### **Backend Setup**
+
 Navigate to the root directory and initialize your virtual environment:
 
-``` bash
-cd llm 
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install flask flask-cors ollama
-```
+   ``` bash
+   cd llm 
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install flask flask-cors ollama
+   ```
 
 Run the server:
-
-```bash
-cd backend
-python main.py
-```
-
+   
+   ```bash
+   cd backend
+   python main.py
+   ``` 
 The server will boot up in debug mode on ```http://localhost:5000.```
-2. **Frontend Setup:**
+
+
+### **Frontend Setup:**
+
 Open a secondary terminal and navigate to your React workspace:
 
-```bash
-cd frontend/LLMFrontend
-
-# Install node dependencies
-npm install
-
-# Start the Vite development build server
-npm run dev
-```
-
+   ```bash
+   cd frontend/LLMFrontend
+   
+   # Install node dependencies
+   npm install
+   
+   # Start the Vite development build server
+   npm run dev
+   ```
+   
 The UI can be accessed directly at ```http://localhost:5173```.
