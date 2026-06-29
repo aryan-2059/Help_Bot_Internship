@@ -54,12 +54,13 @@
 }
 
 .app-header {
-  position: sticky;
+  position: fixed;
   top: 0;
+  width: 100%;
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 15px;
   height: var(--header-height);
   padding: 0 max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--border-subtle);
@@ -83,6 +84,42 @@
   box-shadow: 0 0px 24px rgba(150, 172, 177, 0.838);
 }
 
+.app-header .app-header__logo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 196.75px;
+  height: 50px;
+  background: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-header .reset-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.4s ease;
+}
+.app-header .reset-btn:hover:not(:disabled) {
+  transform: scale(1.03);
+  box-shadow: 0 8px 28px rgba(190, 232, 1, 0.401);
+  background: linear-gradient(135deg, rgba(144, 238, 144, 0.655) 10%, #43b37e 100%);
+}
+.app-header .reset-btn:hover:is(:disabled) {
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+  background: var(--accent-soft);
+}
 
 .app-header__title {
   margin: 0;
@@ -90,6 +127,7 @@
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.02em;
+  
 }
 
 .app-header__subtitle {
@@ -108,6 +146,8 @@
   padding: 0 20px max(20px, env(safe-area-inset-bottom));
   position: relative;
   z-index: 2;
+  top: var(--header-height);
+  padding-bottom: max(var(--composer-height), env(safe-area-inset-bottom));
 }
 
 .messages {

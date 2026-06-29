@@ -131,6 +131,10 @@ export default function App() {
           <h1 className="app-header__title">Power Intelligence</h1>
           <p className="app-header__subtitle">Powered by Llama 3</p>
         </div>
+        <img src="../logo/pfc_english_logo.png" 
+        alt="Logo" 
+        className="app-header__logo"
+         />
         <button
           className='reset-btn'
           onClick={handleReset}

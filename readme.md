@@ -37,8 +37,6 @@ The assistant is engineered with a split-personality strategy: it delivers light
 
 3. **Python** Python 3.10+ installed.
 
-
-
 ## Installation setup
 
 ### **Backend Setup**
@@ -53,13 +51,13 @@ Navigate to the root directory and initialize your virtual environment:
    ```
 
 Run the server:
-   
+
    ```bash
    cd backend
    python main.py
-   ``` 
-The server will boot up in debug mode on ```http://localhost:5000.```
+   ```
 
+The server will boot up in debug mode on ```http://localhost:5000.```
 
 ### **Frontend Setup:**
 
@@ -74,5 +72,5 @@ Open a secondary terminal and navigate to your React workspace:
    # Start the Vite development build server
    npm run dev
    ```
-   
+
 The UI can be accessed directly at ```http://localhost:5173```.
