@@ -45,8 +45,12 @@ export default function App() {
         body: JSON.stringify({ message: userText }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       if (!response.body) {
-        throw new Error('ReadableStream not supported by backend response.');
+        throw new Error('ReadableStream not supported in this browser.');
       }
 
       const reader = response.body.getReader();
@@ -56,9 +60,11 @@ export default function App() {
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        const chunkValue = decoder.decode(value, { stream: !doneReading });
 
-        setMessages((prev) => {
+        if(value && value.length > 0) {
+          const chunkValue = decoder.decode(value, { stream : !doneReading});
+        
+          setMessages((prev) => {
           const updated = [...prev];
           const lastMsgIndex = updated.length - 1;
           if (lastMsgIndex >= 0 && updated[lastMsgIndex].sender === 'bot') {
@@ -68,21 +74,38 @@ export default function App() {
             };
           }
           return updated;
-        });
+          });
+        }
       }
-    } catch (error) {
+    } 
+    catch (error) {
+      console.error('Streaming error:', error);
       setMessages((prev) => {
         const updated = [...prev];
         const lastMsgIndex = updated.length - 1;
         if (lastMsgIndex >= 0 && updated[lastMsgIndex].sender === 'bot') {
-          updated[lastMsgIndex].text = 'Failed to connect to streaming backend.';
+          updated[lastMsgIndex] = {
+            ...updated[lastMsgIndex],
+            text: `Failed to connect to streaming backend: ${error.message}`,
+          };
         }
         return updated;
+        
       });
     } finally {
       setIsStreaming(false);
     }
   };
+
+  const handleReset = async () => {
+    try {
+      await fetch('http://localhost:5000/api/reset', {method: 'POST'});
+      setMessages([]);
+    }
+    catch(e){
+      console.error('Reset failed:', e);
+    }
+  }
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isStreaming) {
@@ -108,6 +131,14 @@ export default function App() {
           <h1 className="app-header__title">Power Intelligence</h1>
           <p className="app-header__subtitle">Powered by Llama 3</p>
         </div>
+        <button
+          className='reset-btn'
+          onClick={handleReset}
+          disabled={isStreaming}
+          title='Clear Conversation'
+        >
+          Reset Chat
+        </button>
       </header>
 
       <main className="chat-shell">
@@ -125,8 +156,7 @@ export default function App() {
             const isLastBotStreaming =
               isStreaming &&
               index === messages.length - 1 &&
-              msg.sender === 'bot' &&
-              !msg.text;
+              msg.sender === 'bot';
 
             return (
               <div
@@ -143,7 +173,9 @@ export default function App() {
                     <div className="message-content">
                       {msg.text ? (
                         <ReactMarkdown>{String(msg.text)}</ReactMarkdown>
-                      ) : null}
+                      ) : isLastBotStreaming ? null : (
+                        <span className="thinking"> Thinking...</span>
+                      )}
                       {isLastBotStreaming && <span className="streaming-cursor" aria-hidden="true" />}
                     </div>
                   ) : (
@@ -166,6 +198,7 @@ export default function App() {
               onKeyDown={handleKeyDown}
               placeholder="Message Intelligence…"
               aria-label="Message"
+              disabled={isStreaming}
             />
             <button
               className="composer__send"
@@ -173,7 +206,7 @@ export default function App() {
               onClick={handleSendMessage}
               disabled={isStreaming || !input.trim()}
             >
-              Send
+              {isStreaming ? '...' : 'Send'}
             </button>
           </div>
         </div>
