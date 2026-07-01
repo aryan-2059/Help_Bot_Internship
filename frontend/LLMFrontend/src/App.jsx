@@ -11,6 +11,18 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const textareaRef = useRef(null);
+  const [isDark, setIsDark] = useState(true); //default dark mode
+
+  // toggle dark mode
+  useEffect(()=>{
+    if(isDark){
+      document.body.classList.remove('light-mode');
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.add('light-mode');
+      document.body.classList.remove('dark-mode');
+    }
+  }, [isDark]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -158,6 +170,15 @@ export default function App() {
         />
         </a>
        
+        <button
+          className='theme-toggle-btn'
+          onClick={() => setIsDark(prev=> !prev)}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label="Toggle Theme"
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+        
         <button
           className='reset-btn'
           onClick={handleReset}
