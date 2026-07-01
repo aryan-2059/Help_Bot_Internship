@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import ReactMarkdown from 'react-markdown';
 
+const MAX_TEXTAREA_HEIGHT = 160;
+
 export default function App() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef(null);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -131,14 +134,23 @@ export default function App() {
           <h1 className="app-header__title">Power Intelligence</h1>
           <p className="app-header__subtitle">Powered by Llama 3</p>
         </div>
+        <a
+          href="https://www.pfcindia.co.in"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="app-header__logo-link"
+        >
+        
         <img src="../logo/pfc_english_logo.png" 
         alt="Logo" 
         className="app-header__logo"
-         />
+        />
+        </a>
+       
         <button
           className='reset-btn'
           onClick={handleReset}
-          disabled={isStreaming}
+          disabled={isStreaming || messages.length === 0}
           title='Clear Conversation'
         >
           Reset Chat
