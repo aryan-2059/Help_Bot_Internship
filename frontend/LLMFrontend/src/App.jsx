@@ -32,6 +32,13 @@ export default function App() {
     };
   }, []);
 
+  // Auto-resize text area as the user types message
+  useEffect(()=>{
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = `${newHeight}px`;
+  },[input])
+  
   const handleSendMessage = async () => {
     const userText = input.trim();
     if (!userText || isStreaming) return;
@@ -127,12 +134,14 @@ export default function App() {
     >
       <div className="cursor-glow-layer"/>
       <header className="app-header">
-        <div className="app-header__badge" aria-hidden="true">
-          AI
-        </div>
-        <div>
-          <h1 className="app-header__title">Power Intelligence</h1>
-          <p className="app-header__subtitle">Powered by Llama 3</p>
+        <div className="app-header__brand">
+          <div className="app-header__badge" aria-hidden="true">
+            AI
+          </div>
+          <div>
+            <h1 className="app-header__title">Power Intelligence</h1>
+            <p className="app-header__subtitle">Powered by Llama 3</p>
+          </div>
         </div>
         <a
           href="https://www.pfcindia.co.in"
@@ -206,15 +215,16 @@ export default function App() {
 
         <div className="composer">
           <div className="composer__inner">
-            <input
+            <textarea
+              ref={textareaRef}
               className="composer__input"
-              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Message Intelligence…"
               aria-label="Message"
               disabled={isStreaming}
+              rows={1}
             />
             <button
               className="composer__send"
