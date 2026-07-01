@@ -36,6 +36,8 @@ export default function App() {
   useEffect(()=>{
     const el = textareaRef.current;
     if (!el) return;
+    el.style.height = 'auto';
+    const newHeight = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
     el.style.height = `${newHeight}px`;
   },[input])
   

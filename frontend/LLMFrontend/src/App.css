@@ -53,6 +53,13 @@
   );
 }
 
+/* Fix: Below 480px (mobile), no mouse tracking for glow as no hover for touch screens.Instead a static glow, centered at the top is used */
+@media (max-width: 480px){
+  .cursor-glow-layer{
+    background: radial-gradient(500px circle at 50% 0%, rgba(202, 205, 54, 0.20) 10%, transparent 80%);
+  }
+}
+
 .app-header {
   position: fixed;
   top: 0;
@@ -69,6 +76,12 @@
   backdrop-filter: blur(20px) saturate(180%);
 }
 
+.app-header__brand{
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
 .app-header__badge {
   display: grid;
   place-items: center;
@@ -82,25 +95,22 @@
   letter-spacing: 0.04em;
   color: #fff;
   box-shadow: 0 0px 24px rgba(150, 172, 177, 0.838);
+  flex-shrink: 0;
 }
 
-.app-header .app-header__logo {
-  width: 196.75px;
-  height: 50px;
-  background: var(--accent);
-  border-radius: 15px;;
-}
 .app-header .app-header__logo-link{
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
- 
+  align-items: center;
 }
-@media (max-width: 640px){
-  .app-header .app-header__logo{
-    display: none;
-  }
+.app-header .app-header__logo {
+  width: 196.75px;
+  height: 50px;
+  background: var(--accent);
+  border-radius: 15px;
+  display: block;
 }
 
 .app-header .reset-btn {
@@ -115,17 +125,19 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.4s ease;
+  flex-shrink: 0;
 }
 .app-header .reset-btn:hover:not(:disabled) {
   transform: scale(1.03);
   box-shadow: 0 8px 28px rgba(190, 232, 1, 0.401);
   background: linear-gradient(135deg, rgba(144, 238, 144, 0.655) 10%, #43b37e 100%);
 }
-.app-header .reset-btn:hover:is(:disabled) {
+.app-header .reset-btn:disabled {
   transform: none;
   box-shadow: none;
   cursor: not-allowed;
   background: var(--accent-soft);
+  opacity: 0.5;
 }
 
 .app-header__title {
@@ -153,8 +165,8 @@
   padding: 0 20px max(20px, env(safe-area-inset-bottom));
   position: relative;
   z-index: 2;
-  top: var(--header-height);
-  padding-bottom: max(var(--composer-height), env(safe-area-inset-bottom));
+  margin-top: var(--header-height);
+  padding-bottom: calc(var(--composer-height)+20px);
 }
 
 .messages {
@@ -349,20 +361,24 @@
   }
 }
 
+/* Composer fixed at center, width capped to chat column. */
 .composer {
   position: fixed;
-  bottom: 10px;
+  bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(150vw, calc(var(--max-chat-width)+40px));
+  width: min(88vw, 860px);
+  z-index: 5;
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
-  border-radius: 30px;
+  border-radius: var(--radius-pill);
 }
 
 .composer__inner {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 8px 8px 8px 18px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-strong);
@@ -380,18 +396,35 @@
     0 0 0 4px var(--accent-soft);
 }
 
+/* Fix: text area replaced input; auto expands as user types in a long message */
 .composer__input {
   flex: 1;
+  max-height: 160px;
   min-width: 0;
+  resize: none;
+  overflow-y: auto;
   padding: 10px 0;
   border: none;
   background: transparent;
   color: var(--text-primary);
+  font-family: var(--font-text);
+  line-height: 1.45;
   font-size: 1rem;
   letter-spacing: -0.01em;
   outline: none;
 }
 
+.composer__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.composer__input::-webkit-scrollbar{
+  width: 5px;
+}
+.composer__input::-webkit-scrollbar-thumb{
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-pill);
+}
 .composer__input::placeholder {
   color: var(--text-tertiary);
 }
@@ -477,6 +510,10 @@
     padding: 32px 16px;
   }
 
+  .composer{
+    width: 94vw;
+  }
+
   .composer__inner {
     padding: 6px 6px 6px 14px;
   }
@@ -486,6 +523,22 @@
     height: 40px;
     padding: 0 14px;
     font-size: 0.88rem;
+  }
+}
+
+/* Fix: below 480px logo replaces the badge and title */
+@media (max-width: 480px){
+  .app-header__brand{
+    display: none;
+  }
+  .app-header .app-header__logo-link{
+    position: static;
+    transform: none;
+    left: auto;
+  }
+  .app-header .app-header__logo {
+    width: 140px;
+    height: 36px;
   }
 }
 
