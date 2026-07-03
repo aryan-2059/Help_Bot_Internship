@@ -623,6 +623,19 @@ body.light-mode .app-header__logo{
   background: none;
 }
 
+body.light-mode .empty-state__title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 6vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  background: linear-gradient(180deg, #35626ab9 30%, #000609eb 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 body.light-mode .message-bubble--bot {
   background: #fff;
   border: 1px solid rgba(0,0,0,0.1);
