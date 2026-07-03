@@ -537,8 +537,8 @@
   }
 }
 
-/* Fix: below 480px logo replaces the badge and title */
-@media (max-width: 480px){
+/* Fix: below 750px logo replaces the badge and title */
+@media (max-width: 750px){
   .app-header__brand{
     display: none;
   }
