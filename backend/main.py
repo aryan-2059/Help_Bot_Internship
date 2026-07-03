@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import ollama
+from db import save_message
 
 app = Flask(__name__)
 CORS(app)
@@ -54,6 +55,7 @@ def chat():
         'role': 'user',
         'content': user_message,
     })
+    save_message('user', user_message)
     
     options = {
         'num_predict': DETAILED_MAX_TOKENS if detailed else CONCISE_MAX_TOKENS,
@@ -89,6 +91,7 @@ def chat():
                     'role': 'assistant',
                     'content': full_response,
                 })
+                save_message('bot', full_response)
                 print(f"[Assistant response stored, history now {len(chat_history)} messages]")
 
     # Use text/event-stream or plain text with stream_with_context
