@@ -223,24 +223,43 @@
 
 .message-row {
   display: flex;
+  flex-direction: column;
   width: 100%;
 }
 
 .message-row--user {
-  justify-content: flex-end;
+  align-items: flex-end;
 }
 
 .message-row--bot {
-  justify-content: flex-start;
+  align-items: flex-start;
 }
 
 .message-bubble {
   max-width: min(88%, 560px);
+  position: relative;
   padding: 14px 18px;
   border-radius: var(--radius-md);
   line-height: 1.55;
   word-wrap: break-word;
   animation: message-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.message-timestamp-tooltip {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease;
+  width: max-content;
+}
+.message-row:hover .message-timestamp-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+.message-timestamp-tooltip:hover {
+  color: rgba(255, 255, 255, 0.815);
 }
 
 @keyframes message-in {
@@ -650,6 +669,10 @@ body.light-mode .composer__inner {
   background: rgba(255, 255, 255, 0.90);
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
+
+body.light-mode .message-timestamp-tooltip {
+  color: #000;
+} 
 
 body.light-mode .composer__input {
   color: #1d1d1f;

@@ -57,10 +57,10 @@ export default function App() {
     const userText = input.trim();
     if (!userText || isStreaming) return;
 
-    setMessages((prev) => [...prev, { sender: 'user', text: userText }]);
+    setMessages((prev) => [...prev, { sender: 'user', text: userText, time: new Date() }]);
     setInput('');
     setIsStreaming(true);
-    setMessages((prev) => [...prev, { sender: 'bot', text: '' }]);
+    setMessages((prev) => [...prev, { sender: 'bot', text: '', time: new Date() }]);
 
     try {
       const response = await fetch('http://localhost:5000/api/chat', {
@@ -207,29 +207,29 @@ export default function App() {
               msg.sender === 'bot';
 
             return (
-              <div
-                className={`message-row message-row--${msg.sender === 'user' ? 'user' : 'bot'}`}
-                key={index}
-              >
-                <div
-                  className={`message-bubble message-bubble--${msg.sender === 'user' ? 'user' : 'bot'}`}
-                >
-                  <div className="message-label">
-                    {msg.sender === 'user' ? 'You' : 'Llama 3'}
-                  </div>
-                  {msg.sender === 'bot' ? (
-                    <div className="message-content">
-                      {msg.text ? (
-                        <ReactMarkdown>{String(msg.text)}</ReactMarkdown>
-                      ) : isLastBotStreaming ? null : (
-                        <span className="thinking"> Thinking...</span>
-                      )}
-                      {isLastBotStreaming && <span className="streaming-cursor" aria-hidden="true" />}
+              <div className={`message-row message-row--${msg.sender === 'user' ? 'user' : 'bot'}`} key={index} >
+                <div className={`message-bubble message-bubble--${msg.sender === 'user' ? 'user' : 'bot'}`}>
+                    <div className="message-label">
+                      {msg.sender === 'user' ? 'You' : 'Llama 3'}
                     </div>
-                  ) : (
-                    <p className="message-content">{msg.text}</p>
-                  )}
+                    {msg.sender === 'bot' ? (
+                      <div className="message-content">
+                        {msg.text ? (
+                          <ReactMarkdown>{String(msg.text)}</ReactMarkdown>
+                        ) : isLastBotStreaming ? null : (
+                          <span className="thinking"> Thinking...</span>
+                        )}
+                        {isLastBotStreaming && <span className="streaming-cursor" aria-hidden="true" />}
+                      </div>
+                    ) : (
+                      <p className="message-content">{msg.text}</p>
+                    )}
                 </div>
+                <span className="message-timestamp-tooltip">
+                      {msg.time?.toLocaleDateString([], {month: 'short', day: 'numeric'})}
+                      {' · '}
+                      {msg.time?.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}
+                    </span>
               </div>
             );
           })}
