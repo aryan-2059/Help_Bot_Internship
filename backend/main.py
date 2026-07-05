@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import ollama
-from db import save_message
+from db import (save_message, get_connection, create_conversation, get_conversations, get_messages_by_conversations)
 
 app = Flask(__name__)
 CORS(app)
@@ -24,52 +24,88 @@ SYSTEM_PROMPT = (
     'Always maintain full context of the conversation — remember what was discussed earlier.'
 )
 
-CONCISE_MAX_TOKENS = 200
+CONCISE_MAX_TOKENS = 250
 DETAILED_MAX_TOKENS = 1024
 
-chat_history = [
-    {
-        'role': 'system',
-        'content': SYSTEM_PROMPT,
-    }
-]
+
+# FIX: each conversatino gets its oown isolated chat history.
+chat_history ={}
+
+def get_history(conversation_id):
+    '''Return this conversation's history, creating a new one if it doesn't exist.'''
+    if conversation_id not in chat_history:
+        chat_history[conversation_id] = [
+            {
+                'role': 'system',
+                'content': SYSTEM_PROMPT
+            }
+        ]
+    return chat_history[conversation_id]
 
 def wants_detailed_explanation(message: str) -> bool:
     lower = message.lower()
     return any(keyword in lower for keyword in DETAIL_KEYWORDS)
 
+@app.route('/api/conversations', methods=['POST'])
+def new_conversation():
+    '''Create a new conversation and return its ID.'''
+    conv_id = create_conversation()
+    return {'id': conv_id}
+
+@app.route('/api/conversations', methods=['GET'])
+def list_conversations():
+    '''Return a list of all conversations.'''
+    conversations = get_conversations()
+    return {'conversations': conversations}
+
+@app.route('/api/conversations/<int:conv_id>/messages', methods=['GET'])
+def conversation_messages(conv_id):
+    '''Return all messages for a specific conversation.'''
+    messages = get_messages_by_conversations(conv_id)
+    return {'messages': messages}
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
     user_message = data.get('message', '')
+    conversation_id = data.get('conversation_id')
     
-    detailed = wants_detailed_explanation(user_message)
-    
-    if not user_message.strip():
+    if not user_message.strip() or not conversation_id:
         return Response('', mimetype='text/plain')
     
     detailed = wants_detailed_explanation(user_message)
+    history = get_history(conversation_id)
 
-    chat_history.append({
+    existing = get_messages_by_conversations(conversation_id)
+    if len(existing) == 0:
+        # First message in this conversation, create a new conversation in the DB
+        conn = get_connection()
+        cursor = conn.cursor()
+        title = user_message[:50]  # Use the first 50 characters as the title
+        cursor.execute('UPDATE conversations SET title = %s WHERE id = %s', (title, conversation_id))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+    history.append({
         'role': 'user',
         'content': user_message,
     })
-    save_message('user', user_message)
+    save_message('user', user_message, conversation_id)
     
     options = {
         'num_predict': DETAILED_MAX_TOKENS if detailed else CONCISE_MAX_TOKENS,
         'temperature': 0.7,
     }
     
-    print(f"\n--- {'DETAILED' if detailed else 'CONCISE'} | History depth: {len(chat_history)} | Q: {user_message} ---")
+    print(f"\n--- {'DETAILED' if detailed else 'CONCISE'} | Conv {conversation_id} | History depth: {len(history)} | Q: {user_message} ---")
 
     def generate():
         full_response = ''
         try:
             response_stream = ollama.chat(
                 model='llama3:latest',
-                messages=chat_history,
+                messages=history,
                 stream=True,
                 options=options,
             )
@@ -87,27 +123,15 @@ def chat():
             
         finally:
             if full_response.strip():
-                chat_history.append({
+                history.append({
                     'role': 'assistant',
                     'content': full_response,
                 })
-                save_message('bot', full_response)
-                print(f"[Assistant response stored, history now {len(chat_history)} messages]")
+                save_message('bot', full_response, conversation_id)
+                print(f"[Assistant response stored, history now {len(history)} messages]")
 
     # Use text/event-stream or plain text with stream_with_context
     return Response(stream_with_context(generate()), mimetype='text/plain')
 
-@app.route('/api/reset', methods=['POST'])
-def reset():
-    '''Utility endpoint to reset the chat history.'''
-    global chat_history
-    chat_history = [
-        {
-            'role': 'system',
-            'content': SYSTEM_PROMPT
-        }
-    ]
-    print("[Chat history reset]")
-    return {'status': 'success', 'message': 'Chat history reset.'}
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

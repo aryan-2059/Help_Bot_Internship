@@ -12,6 +12,19 @@ export default function App() {
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const textareaRef = useRef(null);
   const [isDark, setIsDark] = useState(true); //default dark mode
+  
+  // conversation management
+  const[conversations, setConversations] = useState([]);
+  const[currentConvId, setCurrentConvId] = useState(null);
+  const[sideBarOpen, setSidebarOpen] = useState(true);
+
+  // fetch conversations from backend on component mount
+  useEffect(()=>{
+    fetch('http://localhost:5000/api/conversations')
+      .then((res)=>res.json())
+      .then((data)=>setConversations(data.conversations))
+      .catch((err)=>console.error('Failed to fetch conversations:', err));
+  }, []);
 
   // toggle dark mode
   useEffect(()=>{
@@ -24,6 +37,7 @@ export default function App() {
     }
   }, [isDark]);
 
+  // scroll to bottom when new messages arrive or streaming state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
@@ -52,11 +66,50 @@ export default function App() {
     const newHeight = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
     el.style.height = `${newHeight}px`;
   },[input])
+
+  // Handle new chat creation
+  const handleNewChat = async () => {
+    if (currentConvId && messages.length === 0) {
+        return; // If there's an existing conversation with no messages, don't create a new one
+      }
+    try {
+      const res = await fetch('http://localhost:5000/api/conversations', { method: 'POST' });
+      const data = await res.json();
+      const newConv = { id: data.id, title: 'New Chat', created_at: new Date().toISOString() };
+      setConversations((prev) => [newConv, ...prev]);
+      setCurrentConvId(data.id);
+      setMessages([]);
+    } catch (error) {
+      console.error('Failed to create new chat:', error);
+    }
+  }
+
+  // Handle conversation selection
+  const handleSelectConversation = async (id) => {
+    if (id === currentConvId) return; // already selected
+    try {
+      setCurrentConvId(id);
+      const res = await fetch(`http://localhost:5000/api/conversations/${id}/messages`);
+      const data = await res.json();
+      setMessages(data.messages.map((m)=>({ ...m, time: new Date(m.created_at)})));
+    } catch (error) {
+      console.error('Failed to fetch conversation:', error);
+    }
+  }
   
   const handleSendMessage = async () => {
     const userText = input.trim();
     if (!userText || isStreaming) return;
-
+    
+    let convId = currentConvId;
+    // If there's no current conversation, create a new one
+    if (!convId) {
+        const res = await fetch('http://localhost:5000/api/conversations', { method: 'POST' });
+        const data = await res.json();
+        convId = data.id;
+        setConversations((prev) =>[{ id: convId, title: 'New Chat', created_at: new Date().toISOString() }, ...prev]);
+        setCurrentConvId(convId);
+    }
     setMessages((prev) => [...prev, { sender: 'user', text: userText, time: new Date() }]);
     setInput('');
     setIsStreaming(true);
@@ -66,7 +119,7 @@ export default function App() {
       const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText }),
+        body: JSON.stringify({ message: userText, conversation_id: convId }),
       });
 
       if (!response.ok) {
@@ -101,6 +154,10 @@ export default function App() {
           });
         }
       }
+      // After streaming is done, fetch the updated list of conversations to reflect any changes
+      fetch('http://localhost:5000/api/conversations')
+      .then((res)=>res.json())
+      .then((data)=>setConversations(data.conversations))
     } 
     catch (error) {
       console.error('Streaming error:', error);
@@ -121,16 +178,6 @@ export default function App() {
     }
   };
 
-  const handleReset = async () => {
-    try {
-      await fetch('http://localhost:5000/api/reset', {method: 'POST'});
-      setMessages([]);
-    }
-    catch(e){
-      console.error('Reset failed:', e);
-    }
-  }
-
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isStreaming) {
       e.preventDefault();
@@ -147,6 +194,37 @@ export default function App() {
       }}
     >
       <div className="cursor-glow-layer"/>
+      {/* Sidebar */}
+      {sideBarOpen && (
+        <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>
+      )}
+      <aside className={`sidebar ${sideBarOpen ? 'sidebar--open' : 'sidebar--closed'}`}>
+        <div className="sidebar__header">
+          <button className="sidebar__collapse-btn" onClick={() => setSidebarOpen(false)}>
+            ☰
+          </button>
+          <button className="sidebar__new-chat" onClick={handleNewChat}>
+            + New Chat
+          </button>
+        </div>
+        <div className = 'sidebar__list'>
+          {conversations.map((conv)=>(
+            <button
+              key={conv.id}
+              className={`sidebar__item ${conv.id === currentConvId ? 'sidebar__item--active' : ''}`}
+              onClick={() => handleSelectConversation(conv.id)}
+            >
+              {conv.title}
+            </button>
+          ))}
+        </div>
+      </aside>
+      {!sideBarOpen && (
+        <button className="sidebar-toggle-btn" onClick={() => setSidebarOpen(true)} title="Expand sidebar">
+          ☰
+        </button> 
+      )}
+
       <header className="app-header">
         <div className="app-header__brand">
           <div className="app-header__badge" aria-hidden="true">
@@ -178,18 +256,9 @@ export default function App() {
         >
           {isDark ? '☀️' : '🌙'}
         </button>
-        
-        <button
-          className='reset-btn'
-          onClick={handleReset}
-          disabled={isStreaming || messages.length === 0}
-          title='Clear Conversation'
-        >
-          Reset Chat
-        </button>
       </header>
 
-      <main className="chat-shell">
+      <main className={`chat-shell ${sideBarOpen ? 'chat-shell--sidebar-open':''}`}>
         <div className="messages" role="log" aria-live="polite" aria-relevant="additions">
           {messages.length === 0 && (
             <div className="empty-state">
