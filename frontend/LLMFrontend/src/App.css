@@ -193,6 +193,7 @@
   cursor: pointer;
   flex-shrink: 0;
   font-size: 1.1rem;
+  top: calc(var(--header-height) + 12px);
 }
 .sidebar__new-chat{
   width: 100%;
@@ -206,8 +207,11 @@
   transition: all 0.3s ease;
 }
 .sidebar__new-chat:hover{
-  background: var(--accent-hover);
+  background: var(--accent);
   box-shadow: 0 8px 28px rgba(190, 232, 1, 0.401);
+}
+.sidebar__new-chat:active{
+  transform: scale(0.97);
 }
 .sidebar__list{
   flex: 1;
@@ -785,6 +789,18 @@ body.light-mode .empty-state__title {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+body.light-mode .sidebar{
+  background: rgba(255, 255, 255, 0.51);
+  border-right: 0.5 solid var(--border-subtle);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(10px) saturate(180%);
+  transition: all 0.5s ease;
+}
+body.light-mode .sidebar__new-chat:hover{
+  background: linear-gradient(90deg, #57cadeb9 30%, #35626ab9 100%);
+  box-shadow: 1px 1px 1px black;
 }
 
 body.light-mode .message-bubble--bot {

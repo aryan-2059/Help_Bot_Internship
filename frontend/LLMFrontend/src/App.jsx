@@ -16,7 +16,7 @@ export default function App() {
   // conversation management
   const[conversations, setConversations] = useState([]);
   const[currentConvId, setCurrentConvId] = useState(null);
-  const[sideBarOpen, setSidebarOpen] = useState(true);
+  const[sideBarOpen, setSidebarOpen] = useState(false);
 
   // fetch conversations from backend on component mount
   useEffect(()=>{
@@ -200,7 +200,7 @@ export default function App() {
       )}
       <aside className={`sidebar ${sideBarOpen ? 'sidebar--open' : 'sidebar--closed'}`}>
         <div className="sidebar__header">
-          <button className="sidebar__collapse-btn" onClick={() => setSidebarOpen(false)}>
+          <button className="sidebar__collapse-btn" onClick={() => setSidebarOpen(false)} title='Collapse Sidebar'>
             ☰
           </button>
           <button className="sidebar__new-chat" onClick={handleNewChat}>
