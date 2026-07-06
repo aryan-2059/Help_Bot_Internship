@@ -4,7 +4,20 @@ import ReactMarkdown from 'react-markdown';
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
+function SplashScreen(){
+  return (
+    <div className='splash-screen'>
+      <img src=".\logo\Power_Finance_Corporation_Logo.png" alt="Logo" className='splash-screen__badge' />
+      <h1 className='splash-screen__title'>Power Finance Intelligence</h1>
+      <div className='splash-screen__loader'>
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
+  const[isAppReady, setIsAppReady] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -66,6 +79,11 @@ export default function App() {
     const newHeight = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
     el.style.height = `${newHeight}px`;
   },[input])
+
+  useEffect(()=>{
+    const timer = setTimeout(()=>setIsAppReady(true), 2500);
+    return ()=> clearTimeout(timer);
+  },[]);
 
   // Handle new chat creation
   const handleNewChat = async () => {
@@ -184,6 +202,8 @@ export default function App() {
       handleSendMessage();
     }
   };
+  
+  if(!isAppReady) return <SplashScreen/>;
 
   return (
      <div 
