@@ -3,6 +3,9 @@ from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import ollama
 from db import (save_message, get_connection, create_conversation, get_conversations, get_messages_by_conversations)
+from scope_guard import is_in_scope
+from retrieve import retrieve, format_context
+from web_search import web_search
 
 app = Flask(__name__)
 CORS(app)
@@ -22,10 +25,17 @@ SYSTEM_PROMPT = (
     'If the user explicitly asks for detail (e.g. "explain in detail", "elaborate", "step by step"), '
     'switch to a thorough, well-structured explanation. '
     'Always maintain full context of the conversation — remember what was discussed earlier.'
+    'When context is provided below under "Reference material", base your answer on it '
+    'and do not contradict it. If the reference material does not fully answer the question, '
+    'say so briefly rather than inventing details.'
 )
 
 CONCISE_MAX_TOKENS = 250
 DETAILED_MAX_TOKENS = 1024
+
+OUT_OF_SCOPE_MSG = ( "That's outside what I can help with here — I'm scoped to IT support and "
+    "company help questions only. Try me with something like a VPN, printer, "
+    "or account issue.")
 
 
 # FIX: each conversatino gets its oown isolated chat history.
@@ -45,6 +55,25 @@ def get_history(conversation_id):
 def wants_detailed_explanation(message: str) -> bool:
     lower = message.lower()
     return any(keyword in lower for keyword in DETAIL_KEYWORDS)
+
+def build_augmented_message(user_message: str) -> tuple[str, str]:
+    rag_chunks = retrieve(user_message)
+    
+    if rag_chunks:
+        context_text = format_context(rag_chunks)
+        source = "rag"
+    else:
+        context_text = web_search(user_message)
+        source = "web" if context_text else "none"
+        
+    if not context_text:
+        return user_message, source
+    
+    augmented = (
+        f"Reference material: \n{context_text}\n\n"
+        f"User question: {user_message}"
+    )
+    return augmented, source
 
 @app.route('/api/conversations', methods=['POST'])
 def new_conversation():
@@ -73,6 +102,13 @@ def chat():
     if not user_message.strip() or not conversation_id:
         return Response('', mimetype='text/plain')
     
+    if not is_in_scope(user_message):
+        def refuse():
+            yield OUT_OF_SCOPE_MSG
+        save_message('user', user_message, conversation_id)
+        save_message('bot', OUT_OF_SCOPE_MSG, conversation_id)
+        return Response(stream_with_context(refuse()), mimetype='text/plain')
+    
     detailed = wants_detailed_explanation(user_message)
     history = get_history(conversation_id)
 
@@ -87,9 +123,10 @@ def chat():
         cursor.close()
         conn.close()
         
+    augmented_message, context_source = build_augmented_message(user_message)
     history.append({
         'role': 'user',
-        'content': user_message,
+        'content': augmented_message,
     })
     save_message('user', user_message, conversation_id)
     
