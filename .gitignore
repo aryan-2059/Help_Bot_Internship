@@ -36,3 +36,9 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
+
+# ========================
+# RAG Documents
+# ========================
+documents/
+store.json
