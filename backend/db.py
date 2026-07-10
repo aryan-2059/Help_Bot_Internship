@@ -60,3 +60,27 @@ def get_messages_by_conversations(conversation_id):
     for row in messages:
         row['created_at'] = row['created_at'].isoformat()  # Convert datetime to string
     return messages
+
+def create_user(first_name, last_name, email, password_hash):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "insert into users (first_name, last_name, email, password_hash) values (%s, %s, %s, %s)",
+        (first_name, last_name, email, password_hash)
+        )
+    new_id = cursor.lastrowid
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return new_id
+
+def get_user_by_email(email):
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("select * from users where email = %s", (email,))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    if user:
+        user['created_at'] = user['created_at'].isoformat()
+    return user
