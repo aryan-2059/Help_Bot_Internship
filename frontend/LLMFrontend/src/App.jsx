@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './App.css';
 import ReactMarkdown from 'react-markdown';
+import Auth from './Auth.jsx';
+import Toast from './Toast.jsx';
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -30,6 +32,34 @@ export default function App() {
   const[conversations, setConversations] = useState([]);
   const[currentConvId, setCurrentConvId] = useState(null);
   const[sideBarOpen, setSidebarOpen] = useState(false);
+
+  // auth
+  const [user, setUser] = useState(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [toast, setToast] = useState({msg: '', type: 'success'});
+
+  const showToast = (msg, type = 'success') =>{
+    setToast({msg, type});
+  }
+
+  // restore session on reload
+  useEffect(()=>{
+    const stored = localStorage.getItem('pfc_user');
+    if(stored){
+      try{ setUser(JSON.parse(stored)); }catch{}
+    }
+  },[]);
+
+  const handleAuthSuccess = (userData)=>{
+    setUser(userData);
+    localStorage.setItem('pfc_user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('pfc_user');
+    setProfileOpen(false);
+  };
 
   // fetch conversations from backend on component mount
   useEffect(()=>{
@@ -205,6 +235,76 @@ export default function App() {
   
   if(!isAppReady) return <SplashScreen/>;
 
+   const header = (
+    <header className="app-header">
+      <div className="app-header__brand">
+        <div className="app-header__badge" aria-hidden="true">
+          AI
+        </div>
+        <div>
+          <h1 className="app-header__title">Power Intelligence</h1>
+          <p className="app-header__subtitle">Powered by Llama 3</p>
+        </div>
+      </div>
+      <a
+        href="https://www.pfcindia.co.in"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="app-header__logo-link"
+      >
+        <img src="../logo/pfc_english_logo.png" alt="Logo" className="app-header__logo" />
+      </a>
+ 
+      <button
+        className='theme-toggle-btn'
+        onClick={() => setIsDark(prev=> !prev)}
+        title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        aria-label="Toggle Theme"
+      >
+        {isDark ? '☀️' : '🌙'}
+      </button>
+ 
+      {user && (
+        <div className="profile-menu-wrapper">
+          <button
+            className="profile-icon-btn"
+            onClick={() => setProfileOpen((p) => !p)}
+            aria-label="Profile"
+            title={user.first_name}
+          >
+            {user.first_name?.[0]?.toUpperCase() || '?'}
+          </button>
+          {profileOpen && (
+            <>
+              <div className="profile-backdrop" onClick={() => setProfileOpen(false)} />
+              <div className="profile-dropdown">
+                <p className="profile-dropdown__name">{user.first_name} {user.last_name}</p>
+                <p className="profile-dropdown__email">{user.email}</p>
+                <p className="profile-dropdown__meta">
+                  Member since {user.created_at ? new Date(user.created_at).toLocaleDateString([], {month:'short', year:'numeric'}) : '—'}
+                </p>
+                <button className="profile-dropdown__logout" onClick={handleLogout}>
+                  Log Out
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </header>
+  );
+
+  if(!user){
+     return (
+      <div className="app app--auth" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
+        <div className="cursor-glow-layer"/>
+        {header}
+        <Auth onAuthSuccess={handleAuthSuccess} showToast={showToast} />
+        <Toast message={toast.message} type={toast.type} onDone={() => setToast({ message: '', type: 'success' })} />
+      </div>
+    );
+  }
+
   return (
      <div 
       className="app"
@@ -214,6 +314,7 @@ export default function App() {
       }}
     >
       <div className="cursor-glow-layer"/>
+      <Toast msg={toast.msg} type={toast.type} onDone={()=>setToast({msg:'', type:'success'})} />
       {/* Sidebar */}
       {sideBarOpen && (
         <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>
@@ -245,39 +346,8 @@ export default function App() {
         </button> 
       )}
 
-      <header className="app-header">
-        <div className="app-header__brand">
-          <div className="app-header__badge" aria-hidden="true">
-            AI
-          </div>
-          <div>
-            <h1 className="app-header__title">Power Intelligence</h1>
-            <p className="app-header__subtitle">Powered by Llama 3</p>
-          </div>
-        </div>
-        <a
-          href="https://www.pfcindia.co.in"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="app-header__logo-link"
-        >
-        
-        <img src="../logo/pfc_english_logo.png" 
-        alt="Logo" 
-        className="app-header__logo"
-        />
-        </a>
-       
-        <button
-          className='theme-toggle-btn'
-          onClick={() => setIsDark(prev=> !prev)}
-          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          aria-label="Toggle Theme"
-        >
-          {isDark ? '☀️' : '🌙'}
-        </button>
-      </header>
-
+      {header}
+      
       <main className={`chat-shell ${sideBarOpen ? 'chat-shell--sidebar-open':''}`}>
         <div className="messages" role="log" aria-live="polite" aria-relevant="additions">
           {messages.length === 0 && (
