@@ -2,10 +2,12 @@ import os
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import ollama
-from db import (save_message, get_connection, create_conversation, get_conversations, get_messages_by_conversations)
+from db import (save_message, get_connection, create_conversation, get_conversations, get_messages_by_conversations, create_user, get_user_by_email)
 from scope_guard import is_in_scope
 from retrieve import retrieve, format_context
 from web_search import web_search
+import re
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 CORS(app)
@@ -170,5 +172,61 @@ def chat():
     # Use text/event-stream or plain text with stream_with_context
     return Response(stream_with_context(generate()), mimetype='text/plain')
 
+EMAIL_DOMAIN = 'pfcindia.com'
+SIGNUP_EMAIL_PATTERN = re.compile(r"^[a-z]+_[a-z]+@pfcindia\.com$")
+LOGIN_EMAIL_PATTERN = re.compile(r"^[a-z0-9._%+-]+@pfcindia\.com$")
+
+def expected_email(first_name:str, last_name:str)->str:
+    first = re.sub(r"\s+","", first_name.strip().lower())
+    last = re.sub(r"\s+","",last_name.strip().lower())
+    return f"{first}_{last}@{EMAIL_DOMAIN}"
+
+@app.route('/api/signup', methods=['POST'])
+def signup():
+    data=request.json
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    
+    if not first_name or not last_name or not email or not password:
+        return {'error': 'ALL FIELDS ARE REQUIRED.'}, 400
+    
+    if email != expected_email(first_name, last_name):
+        return{'error':f'Email must be {expected_email(first_name, last_name)}'}, 400
+
+    if get_user_by_email(email):
+        return {'error':'An account with this email already exists,'}, 409
+    
+    password_hash = generate_password_hash(password)
+    user_id=create_user(first_name, last_name, email, password_hash)
+    
+    return {
+        'id': user_id,
+        'first_name': first_name,
+        'last_name': last_name,
+        'email': email,
+    }
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    
+    if not LOGIN_EMAIL_PATTERN.match(email):
+        return {'error': 'Please use your company email (@pfcindia.com).'}, 400
+    
+    user = get_user_by_email(email)
+    if not user or not check_password_hash(user['password_hash'], password):
+        return {'error':'Invalid email or password.'}, 401
+    
+    return {
+        'id': user['id'],
+        'first_name': user['first_name'],
+        'last_name': user['last_name'],
+        'email': user['email'],
+        'created_at': user['created_at']
+    }
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
