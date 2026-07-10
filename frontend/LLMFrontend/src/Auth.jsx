@@ -95,7 +95,7 @@ export default function Auth({onAuthSuccess, showToast }) {
                             {isSubmitting ? '...':'Log In'}
                         </button>
                         <p className="auth-switch-line">
-                            No Account?{' '}
+                            No Account?{' '}<br></br>
                             <span className="auth-switch-link" onClick={()=>setMode('signup')}>Create one now!</span>
                         </p>
                     </form>
@@ -141,7 +141,7 @@ export default function Auth({onAuthSuccess, showToast }) {
                             {isSubmitting ? '...':'Sign Up'}
                         </button>
                         <p className="auth-switch-line">
-                            Already have an account?{' '}
+                            Already have an account?{' '}<br></br>
                             <span className="auth-switch-link"
                             onClick={()=>setMode('login')} >
                                 Login
