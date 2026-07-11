@@ -84,3 +84,13 @@ def get_user_by_email(email):
     if user:
         user['created_at'] = user['created_at'].isoformat()
     return user
+
+def delete_conversation(conversation_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    # messages table has ON DELETE CASCADE on its conversation_id foreign key,
+    # so deleting the conversation row also removes its messages automatically.
+    cursor.execute("DELETE FROM conversations WHERE id = %s", (conversation_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()

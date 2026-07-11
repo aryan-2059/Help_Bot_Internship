@@ -2,12 +2,13 @@ import os
 from flask import Flask, request, Response, stream_with_context
 from flask_cors import CORS
 import ollama
-from db import (save_message, get_connection, create_conversation, get_conversations, get_messages_by_conversations, create_user, get_user_by_email)
+from db import (save_message, get_connection, delete_conversation, create_conversation, get_conversations, get_messages_by_conversations, create_user, get_user_by_email)
 from scope_guard import is_in_scope
 from retrieve import retrieve, format_context
 from web_search import web_search
 import re
 from werkzeug.security import generate_password_hash, check_password_hash
+from scope_guard import is_in_scope
 
 app = Flask(__name__)
 CORS(app)
@@ -40,7 +41,7 @@ OUT_OF_SCOPE_MSG = ( "That's outside what I can help with here — I'm scoped to
     "or account issue.")
 
 
-# FIX: each conversatino gets its oown isolated chat history.
+# FIX: each conversation gets its own isolated chat history.
 chat_history ={}
 
 def get_history(conversation_id):
@@ -95,6 +96,13 @@ def conversation_messages(conv_id):
     messages = get_messages_by_conversations(conv_id)
     return {'messages': messages}
 
+@app.route('/api/conversations/<int:conv_id>', methods=['DELETE'])
+def delete_conversation_route(conv_id):
+    '''Delete a conversation and its messages (cascade).'''
+    delete_conversation(conv_id)
+    chat_history.pop(conv_id, None)  # also drop it from in-memory history
+    return {'deleted': conv_id}
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     data = request.json
@@ -104,6 +112,11 @@ def chat():
     if not user_message.strip() or not conversation_id:
         return Response('', mimetype='text/plain')
     
+    history_so_far = get_history(conversation_id)
+    last_bot_msg = next(
+        (m['content'] for m in reversed(history_so_far) if m['role'] == 'assistant'),""
+    )
+    
     if not is_in_scope(user_message):
         def refuse():
             yield OUT_OF_SCOPE_MSG
@@ -112,7 +125,7 @@ def chat():
         return Response(stream_with_context(refuse()), mimetype='text/plain')
     
     detailed = wants_detailed_explanation(user_message)
-    history = get_history(conversation_id)
+    history = history_so_far
 
     existing = get_messages_by_conversations(conversation_id)
     if len(existing) == 0:
