@@ -1,7 +1,34 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 
 export default function Auth({onAuthSuccess, showToast }) {
     const [mode, setMode] = useState('login');
+
+    useEffect(()=>{
+        const redirect = ()=> {window.location.href = 'https://google.com';};
+        const handleContextMenu = (e) => {e.preventDefault(); redirect();};
+        const handleDblClick = (e) => {e.preventDefault(); redirect();};
+        const handleKeyDown = (e) => {
+      const key = e.key.toLowerCase();
+      const isDevToolsShortcut =
+        key === 'f12' ||
+        (e.ctrlKey && e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) ||
+        (e.metaKey && e.altKey && (key === 'i' || key === 'j' || key === 'c'));
+      if (isDevToolsShortcut) {
+        e.preventDefault();
+        redirect();
+      }
+    };
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('dblclick', handleDblClick);
+    document.addEventListener('keydown', handleKeyDown);
+
+     return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('dblclick', handleDoubleClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    }, []);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [loginForm, setLoginForm] = useState({email: '', password: ''});
@@ -17,11 +44,12 @@ export default function Auth({onAuthSuccess, showToast }) {
                 body: JSON.stringify(loginForm),
             });
             const data = await res.json();
+            console.log('login response: ', data)
             if(!res.ok){
                 showToast(data.error || 'Login Failed', 'error');
                 return;
             }
-            showToast(`Welcome back, ${data.first_name}!`, 'success');
+            showToast(`Welcome back, ${data.first_name || 'there'}!`, 'success');
             setTimeout(()=> onAuthSuccess(data), 1200);
         } catch (e) {
             showToast('Could not reach server. ','error');
@@ -43,11 +71,12 @@ export default function Auth({onAuthSuccess, showToast }) {
             }),
         });
         const data = await res.json();
+        console.log('signup response: ', data)
         if(!res.ok){
             showToast(data.error || 'Signup failed', 'error');
             return;
         }
-        showToast(`Account created, welcome ${data.firstName}!`, 'success');
+        showToast(`Account created, welcome ${data.firstName || 'there'}!`, 'success');
         setTimeout(()=> onAuthSuccess(data), 1200);
         } catch (e){
             showToast('Could not reach server.','error');
