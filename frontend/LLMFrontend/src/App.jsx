@@ -26,7 +26,9 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const textareaRef = useRef(null);
-  const [isDark, setIsDark] = useState(true); //default dark mode
+  const [isDark, setIsDark] = useState(()=>{
+    const stored = localStorage.getItem('pfc_theme');
+    return stored ? stored === 'dark' : true;}) ; //default dark mode
   
   // conversation management
   const[conversations, setConversations] = useState([]);
@@ -78,6 +80,7 @@ export default function App() {
       document.body.classList.add('light-mode');
       document.body.classList.remove('dark-mode');
     }
+    localStorage.setItem('pfc_theme', isDark ? 'dark' : 'light');
   }, [isDark]);
 
   // scroll to bottom when new messages arrive or streaming state changes
@@ -120,6 +123,14 @@ export default function App() {
     if (currentConvId && messages.length === 0) {
         return; // If there's an existing conversation with no messages, don't create a new one
       }
+
+      // Reuse an existing empty chat
+      const existingEmpty = conversations.find((c)=>c.title === 'New Chat');
+      if(existingEmpty) {
+        setCurrentConvId(existingEmpty.id);
+        setMessages([]);
+        return;
+      }
     try {
       const res = await fetch('http://localhost:5000/api/conversations', { method: 'POST' });
       const data = await res.json();
@@ -129,6 +140,22 @@ export default function App() {
       setMessages([]);
     } catch (error) {
       console.error('Failed to create new chat:', error);
+    }
+  }
+
+  // Handle conversation deletion
+  const handleDeleteConversation = async (id, e) => {
+    e.stopPropagation();
+    if(!window.confirm('Delete this chat? Cannot be undone')) return;
+    try {
+      await fetch(`http://localhost:5000/api/conversations/${id}`, {method: 'DELETE'});
+      setConversations((prev)=>prev.filter((c)=>c.id !== id));
+      if(id===currentConvId) {
+        setCurrentConvId(null);
+        setMessages([]);
+      }
+    } catch (e){
+      console.error('Failed to delete conversation: ', e);
     }
   }
 
@@ -330,13 +357,23 @@ export default function App() {
         </div>
         <div className = 'sidebar__list'>
           {conversations.map((conv)=>(
-            <button
+            <div
               key={conv.id}
-              className={`sidebar__item ${conv.id === currentConvId ? 'sidebar__item--active' : ''}`}
-              onClick={() => handleSelectConversation(conv.id)}
+              className={`sidebar__item-row ${conv.id === currentConvId ? 'sidebar__item-row--active' : ''}`}
             >
-              {conv.title}
-            </button>
+              <button  className={`sidebar__item ${conv.id === currentConvId ? 'sidebar__item--active' : ''}`}
+                onClick={() => handleSelectConversation(conv.id)}>
+                  {conv.title}
+                </button>
+                <button
+                className="sidebar__item-delete"
+                onClick={(e) => handleDeleteConversation(conv.id, e)}
+                title="Delete chat"
+                aria-label="Delete chat"
+              >
+                🗑
+              </button>
+            </div>
           ))}
         </div>
       </aside>
