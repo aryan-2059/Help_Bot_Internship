@@ -2,9 +2,10 @@ import React, {useEffect} from 'react';
 
 export default function Toast({msg, type, onDone}){
     useEffect(()=>{
+        if (!msg) return;
         const timer = setTimeout(onDone, 3500);
         return () => clearTimeout(timer);
-    }, [onDone])
+    }, [msg,onDone])
 
     if(!msg) return null;
 
