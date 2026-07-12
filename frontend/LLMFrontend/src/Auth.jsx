@@ -56,8 +56,15 @@ export default function Auth({onAuthSuccess, showToast }) {
         } finally {setIsSubmitting(false);}
     };
 
+    const EMAIL_PATTERN = /^[a-z]+_[a-z]+@pfcindia\.com$/i;
+
     const handleSignup = async (e) => {
         e.preventDefault();
+         const expected = `${signupForm.firstName.trim().toLowerCase()}_${signupForm.lastName.trim().toLowerCase()}@pfcindia.com`;
+        if (signupForm.email.trim().toLowerCase() !== expected) {
+      showToast(`Email must be ${expected}`, 'error');
+      return;
+    }
         setIsSubmitting(true);
         try {
             const res = await fetch('http://localhost:5000/api/signup', {
