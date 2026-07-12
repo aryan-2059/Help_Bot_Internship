@@ -64,15 +64,19 @@ export default function App() {
     setUser(null);
     localStorage.removeItem('pfc_user');
     setProfileOpen(false);
+    setConversations([]);
+    setCurrentConvId(null);
+    setMessages([]);
   };
 
   // fetch conversations from backend on component mount
   useEffect(()=>{
-    fetch('http://localhost:5000/api/conversations')
+    if (!user) return;
+    fetch(`http://localhost:5000/api/conversations?user_id=${user.id}`)
       .then((res)=>res.json())
-      .then((data)=>setConversations(data.conversations))
+      .then((data)=>setConversations(data.conversations || []))
       .catch((err)=>console.error('Failed to fetch conversations:', err));
-  }, []);
+  }, [user]);
 
   // toggle dark mode
   useEffect(()=>{
@@ -135,7 +139,10 @@ export default function App() {
         return;
       }
     try {
-      const res = await fetch('http://localhost:5000/api/conversations', { method: 'POST' });
+      const res = await fetch('http://localhost:5000/api/conversations', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_id: user.id}), });
       const data = await res.json();
       const newConv = { id: data.id, title: 'New Chat', created_at: new Date().toISOString() };
       setConversations((prev) => [newConv, ...prev]);
@@ -167,7 +174,7 @@ export default function App() {
     if (id === currentConvId) return; // already selected
     try {
       setCurrentConvId(id);
-      const res = await fetch(`http://localhost:5000/api/conversations/${id}/messages`);
+      const res = await fetch(`http://localhost:5000/api/conversations/${id}/messages?user_id=${user.id}`);
       const data = await res.json();
       setMessages(data.messages.map((m)=>({ ...m, time: new Date(m.created_at)})));
     } catch (error) {
@@ -178,11 +185,15 @@ export default function App() {
   const handleSendMessage = async () => {
     const userText = input.trim();
     if (!userText || isStreaming) return;
-    
+
     let convId = currentConvId;
     // If there's no current conversation, create a new one
     if (!convId) {
-        const res = await fetch('http://localhost:5000/api/conversations', { method: 'POST' });
+        const res = await fetch('http://localhost:5000/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id }),
+        });
         const data = await res.json();
         convId = data.id;
         setConversations((prev) =>[{ id: convId, title: 'New Chat', created_at: new Date().toISOString() }, ...prev]);
@@ -233,10 +244,10 @@ export default function App() {
         }
       }
       // After streaming is done, fetch the updated list of conversations to reflect any changes
-      fetch('http://localhost:5000/api/conversations')
+      fetch(`http://localhost:5000/api/conversations?user_id=${user.id}`)
       .then((res)=>res.json())
       .then((data)=>setConversations(data.conversations))
-    } 
+    }
     catch (error) {
       console.error('Streaming error:', error);
       setMessages((prev) => {
@@ -262,7 +273,7 @@ export default function App() {
       handleSendMessage();
     }
   };
-  
+
   if(!isAppReady) return <SplashScreen/>;
 
    const header = (
@@ -354,7 +365,10 @@ export default function App() {
           <button className="sidebar__collapse-btn" onClick={() => setSidebarOpen(false)} title='Collapse Sidebar'>
             ☰
           </button>
-          <button className="sidebar__new-chat" onClick={handleNewChat}>
+          <button
+            className={`sidebar__new-chat ${!currentConvId ? 'sidebar__new-chat--active' : ''}`}
+            onClick={handleNewChat}
+          >
             + New Chat
           </button>
         </div>
@@ -364,11 +378,13 @@ export default function App() {
               key={conv.id}
               className={`sidebar__item-row ${conv.id === currentConvId ? 'sidebar__item-row--active' : ''}`}
             >
-              <button  className={`sidebar__item ${conv.id === currentConvId ? 'sidebar__item--active' : ''}`}
-                onClick={() => handleSelectConversation(conv.id)}>
-                  {conv.title}
-                </button>
-                <button
+              <button
+                className={`sidebar__item ${conv.id === currentConvId ? 'sidebar__item--active' : ''}`}
+                onClick={() => handleSelectConversation(conv.id)}
+              >
+                {conv.title}
+              </button>
+              <button
                 className="sidebar__item-delete"
                 onClick={(e) => handleDeleteConversation(conv.id, e)}
                 title="Delete chat"

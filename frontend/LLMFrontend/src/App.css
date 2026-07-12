@@ -1178,3 +1178,7 @@ body.light-mode .auth-input {
   background: rgba(217, 83, 79, 0.15);
   color: #d9534f;
 }
+.sidebar__new-chat--active {
+  background: var(--accent);
+  box-shadow: 0 6px 18px rgba(190, 232, 1, 0.35);
+}
