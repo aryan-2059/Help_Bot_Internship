@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import ReactMarkdown from 'react-markdown';
 import Auth from './Auth.jsx';
@@ -43,6 +43,9 @@ export default function App() {
   const showToast = (msg, type = 'success') =>{
     setToast({msg, type});
   }
+  const dismissToast = useCallback(()=>{
+    setToast({msg: '', type:'success'});
+  },[]);
 
   // restore session on reload
   useEffect(()=>{
@@ -327,7 +330,7 @@ export default function App() {
         <div className="cursor-glow-layer"/>
         {header}
         <Auth onAuthSuccess={handleAuthSuccess} showToast={showToast} />
-        <Toast message={toast.message} type={toast.type} onDone={() => setToast({ message: '', type: 'success' })} />
+        <Toast message={toast.message} type={toast.type} onDone={dismissToast} />
       </div>
     );
   }
@@ -341,7 +344,7 @@ export default function App() {
       }}
     >
       <div className="cursor-glow-layer"/>
-      <Toast msg={toast.msg} type={toast.type} onDone={()=>setToast({msg:'', type:'success'})} />
+      <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
       {/* Sidebar */}
       {sideBarOpen && (
         <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>

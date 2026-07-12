@@ -6,7 +6,7 @@ export default function Auth({onAuthSuccess, showToast }) {
     useEffect(()=>{
         const redirect = ()=> {window.location.href = 'https://google.com';};
         const handleContextMenu = (e) => {e.preventDefault(); redirect();};
-        const handleDblClick = (e) => {e.preventDefault(); redirect();};
+        // const handleDblClick = (e) => {e.preventDefault(); redirect();};
         const handleKeyDown = (e) => {
       const key = e.key.toLowerCase();
       const isDevToolsShortcut =
@@ -19,12 +19,12 @@ export default function Auth({onAuthSuccess, showToast }) {
       }
     };
     document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('dblclick', handleDblClick);
+    // document.addEventListener('dblclick', handleDblClick);
     document.addEventListener('keydown', handleKeyDown);
 
      return () => {
       document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('dblclick', handleDoubleClick);
+    //   document.removeEventListener('dblclick', handleDblClick);
       document.removeEventListener('keydown', handleKeyDown);
     };
     }, []);
