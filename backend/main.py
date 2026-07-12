@@ -149,7 +149,10 @@ def new_conversation():
 @app.route('/api/conversations', methods=['GET'])
 def list_conversations():
     '''Return a list of all conversations.'''
-    conversations = get_conversations()
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return {'error': 'user_id is required'}, 400
+    conversations = get_conversations(user_id)
     return {'conversations': conversations}
 
 
