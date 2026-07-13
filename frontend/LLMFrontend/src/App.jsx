@@ -144,12 +144,17 @@ export default function App() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({user_id: user.id}), });
       const data = await res.json();
+      if (!res.ok || !data.id) {
+        showToast(data.error || 'Failed to create new chat.', 'error');
+        return;
+      }
       const newConv = { id: data.id, title: 'New Chat', created_at: new Date().toISOString() };
       setConversations((prev) => [newConv, ...prev]);
       setCurrentConvId(data.id);
       setMessages([]);
     } catch (error) {
       console.error('Failed to create new chat:', error);
+      showToast('Could not reach server. Please try again.', 'error');
     }
   }
 
@@ -189,15 +194,25 @@ export default function App() {
     let convId = currentConvId;
     // If there's no current conversation, create a new one
     if (!convId) {
-        const res = await fetch('http://localhost:5000/api/conversations', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: user.id }),
-        });
-        const data = await res.json();
-        convId = data.id;
-        setConversations((prev) =>[{ id: convId, title: 'New Chat', created_at: new Date().toISOString() }, ...prev]);
-        setCurrentConvId(convId);
+        try {
+          const res = await fetch('http://localhost:5000/api/conversations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.id }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.id) {
+            showToast(data.error || 'Failed to start a new chat.', 'error');
+            return;
+          }
+          convId = data.id;
+          setConversations((prev) =>[{ id: convId, title: 'New Chat', created_at: new Date().toISOString() }, ...prev]);
+          setCurrentConvId(convId);
+        } catch (error) {
+          console.error('Failed to create conversation:', error);
+          showToast('Could not reach server. Please try again.', 'error');
+          return;
+        }
     }
     setMessages((prev) => [...prev, { sender: 'user', text: userText, time: new Date() }]);
     setInput('');
