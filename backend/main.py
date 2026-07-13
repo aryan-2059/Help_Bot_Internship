@@ -143,7 +143,11 @@ def login():
 @app.route('/api/conversations', methods=['POST'])
 def new_conversation():
     '''Create a new conversation and return its ID.'''
-    conv_id = create_conversation()
+    data = request.json or {}
+    user_id = data.get('user_id')
+    if not user_id:
+        return {'error': 'user_id is required'}, 400
+    conv_id = create_conversation(user_id)
     return {'id': conv_id}
 
 @app.route('/api/conversations', methods=['GET'])
