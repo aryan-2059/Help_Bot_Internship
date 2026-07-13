@@ -341,7 +341,7 @@ export default function App() {
         <div className="cursor-glow-layer"/>
         {header}
         <Auth onAuthSuccess={handleAuthSuccess} showToast={showToast} />
-        <Toast message={toast.message} type={toast.type} onDone={dismissToast} />
+        <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
       </div>
     );
   }

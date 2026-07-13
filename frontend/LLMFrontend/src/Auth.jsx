@@ -30,63 +30,100 @@ export default function Auth({onAuthSuccess, showToast }) {
     }, []);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState('');
 
     const [loginForm, setLoginForm] = useState({email: '', password: ''});
     const [signupForm, setSignupForm] = useState({firstName: '', lastName: '', email:'', password:''});
 
+    const PFC_DOMAIN = '@pfcindia.com';
+    const SIGNUP_EMAIL_PATTERN = /^[a-z]+_[a-z]+@pfcindia\.com$/i;
+    const LOGIN_EMAIL_PATTERN = /^[a-z0-9._%+-]+@pfcindia\.com$/i;
+
+    const showError = (message) => {
+        setFormError(message);
+        showToast(message, 'error');
+    };
+
+    const clearError = () => setFormError('');
+
     const handleLogin = async (e) => {
         e.preventDefault();
+        clearError();
+
+        const email = loginForm.email.trim().toLowerCase();
+        if (!email.includes(PFC_DOMAIN)) {
+            showError('Please use your company email (@pfcindia.com).');
+            return;
+        }
+        if (!LOGIN_EMAIL_PATTERN.test(email)) {
+            showError('Enter a valid company email address (e.g. john_doe@pfcindia.com).');
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const res = await fetch('http://localhost:5000/api/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(loginForm),
+                body: JSON.stringify({ email, password: loginForm.password }),
             });
             const data = await res.json();
-            console.log('login response: ', data)
             if(!res.ok){
-                showToast(data.error || 'Login Failed', 'error');
+                showError(data.error || 'Login failed. Please try again.');
                 return;
             }
+            clearError();
             showToast(`Welcome back, ${data.first_name || 'there'}!`, 'success');
             setTimeout(()=> onAuthSuccess(data), 1200);
         } catch (e) {
-            showToast('Could not reach server. ','error');
+            showError('Could not reach server. Please try again.');
         } finally {setIsSubmitting(false);}
     };
 
-    const EMAIL_PATTERN = /^[a-z]+_[a-z]+@pfcindia\.com$/i;
-
     const handleSignup = async (e) => {
         e.preventDefault();
-         const expected = `${signupForm.firstName.trim().toLowerCase()}_${signupForm.lastName.trim().toLowerCase()}@pfcindia.com`;
-        if (signupForm.email.trim().toLowerCase() !== expected) {
-      showToast(`Email must be ${expected}`, 'error');
-      return;
-    }
+        clearError();
+
+        const firstName = signupForm.firstName.trim();
+        const lastName = signupForm.lastName.trim();
+        const email = signupForm.email.trim().toLowerCase();
+        const expected = `${firstName.toLowerCase()}_${lastName.toLowerCase()}@pfcindia.com`;
+
+        if (!email.includes(PFC_DOMAIN)) {
+            showError('Please use your company email (@pfcindia.com).');
+            return;
+        }
+        if (!SIGNUP_EMAIL_PATTERN.test(email)) {
+            showError('Email must follow firstname_lastname@pfcindia.com (e.g. john_doe@pfcindia.com).');
+            return;
+        }
+        if (email !== expected) {
+            showError(`Email must match your name: ${expected}`);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const res = await fetch('http://localhost:5000/api/signup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                first_name: signupForm.firstName,
-                last_name: signupForm.lastName,
-                email: signupForm.email,
+                first_name: firstName,
+                last_name: lastName,
+                email,
                 password: signupForm.password,
             }),
         });
         const data = await res.json();
-        console.log('signup response: ', data)
         if(!res.ok){
-            showToast(data.error || 'Signup failed', 'error');
+            showError(data.error || 'Signup failed. Please try again.');
             return;
         }
-        showToast(`Account created, welcome ${data.firstName || 'there'}!`, 'success');
+        clearError();
+        showToast(`Account created, welcome ${data.first_name || 'there'}!`, 'success');
         setTimeout(()=> onAuthSuccess(data), 1200);
         } catch (e){
-            showToast('Could not reach server.','error');
+            showError('Could not reach server. Please try again.');
         } finally { setIsSubmitting(false);}
     }
     return (
@@ -95,19 +132,23 @@ export default function Auth({onAuthSuccess, showToast }) {
                 <div className="auth-tabs">
                     <button
                         className={`auth-tab ${mode === 'login' ? 'auth-tab--active' : ''}`}
-                        onClick={()=>setMode('login')}
+                        onClick={()=>{ setMode('login'); clearError(); }}
                         type='button'
                         >
                             Log In
                         </button>
                         <button
                         className={`auth-tab ${mode === 'signup' ? 'auth-tab--active' : ''}`}
-                        onClick={()=>setMode('signup')}
+                        onClick={()=>{ setMode('signup'); clearError(); }}
                         type='button'
                         >
                             Sign Up
                         </button>
                 </div>
+
+                {formError && (
+                    <p className="auth-error" role="alert">{formError}</p>
+                )}
 
                 {mode === 'login' ? (
                     <form className='auth-form' onSubmit={handleLogin}>
