@@ -196,3 +196,80 @@ def is_user_suspended(user_id) -> dict:
         return {'suspended': True, 'until': row['suspended_until'].isoformat(), 'admin_name': admin_name}
  
     return {'suspended': False}
+
+# NEW - ADMIN DASHBOARD
+def get_employees_by_department(department):
+    '''Lists employees scoped to the admin's own dept only'''
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("""select id, first_name, last_name, email, created_at
+                   from users where department = %s and user_type = 'employee'
+                   order by first_name""",
+                   (department,))
+    employees = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    for row in employees:
+        row['created_at'] = row['created_at'].isoformat()
+    return employees
+
+def get_employee_detail(employee_id, department):
+    '''Full detailed view for an employee'''
+    conn=get_connection()
+    cursor=conn.cursor(dictionary=True)
+    cursor.execute(
+        "select id, first_name, last_name, email, created_at from users where id = %s and department = %s and user_type='employee'",
+        (employee_id, department)
+    )
+    employee = cursor.fetchone()
+    if not employee:
+        cursor.close()
+        conn.close()
+        return None
+    employee['created_at']=employee['created_at'].isoformat()
+    
+    cursor.execute(
+        "select id, title, created_at from conversations where user_id = %s and deleted_at is null order by id desc",
+        (employee_id,)
+    )
+    active = cursor.fetchall()
+    for c in active:
+        c['created_at'] = c['created_at'].isoformat()
+    
+    cursor.execute("select id, title, created_at, deleted_at from conversations where user_id = %s and deleted_at is not null order by deleted_at desc",
+                   (employee_id,))
+    deleted = cursor.fetchall()
+    for c in deleted:
+        c['created_at']=c['created_at'].isoformat()
+        c['deleted_at']=c['deleted_at'].isoformat()
+        
+    cursor.close()
+    conn.close()
+    employee['active_conversation'] = active
+    employee['deleted_conversation']=deleted
+    return employee
+
+def get_login_history(department):
+    '''Login history filtered by deptt which splits into NEW (acc in last month) and EXISTING USERS'''
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """SELECT lh.event_type, lh.created_at AS event_time,
+                  u.id AS user_id, u.first_name, u.last_name, u.email, u.created_at AS account_created_at
+           FROM login_history lh
+           JOIN users u ON u.id = lh.user_id
+           WHERE u.department = %s
+           ORDER BY lh.created_at DESC
+           LIMIT 200""",
+        (department,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+ 
+    thirty_days_ago = datetime.now() - timedelta(days=30)
+    for row in rows:
+        row['event_time'] = row['event_time'].isoformat()
+        row['is_new_user'] = row['account_created_at'] > thirty_days_ago
+        row['account_created_at'] = row['account_created_at'].isoformat()
+    return rows
