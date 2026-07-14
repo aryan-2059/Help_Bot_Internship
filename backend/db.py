@@ -1,6 +1,7 @@
 import os
 import mysql.connector as mysql
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 
@@ -40,7 +41,7 @@ def get_conversations(user_id):
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
-        "SELECT id, title, created_at FROM conversations WHERE user_id = %s ORDER BY id DESC",
+        "SELECT id, title, created_at FROM conversations WHERE user_id = %s AND deleted_at IS NULL ORDER BY id DESC",
         (user_id,)
     )
     conversations = cursor.fetchall()
@@ -81,8 +82,8 @@ def delete_conversation(conversation_id, user_id):
     cursor = conn.cursor()
     # scoped to user_id so one user can't delete another's conversation by guessing an id
     cursor.execute(
-        "DELETE FROM conversations WHERE id = %s AND user_id = %s",
-        (conversation_id, user_id)
+        "UPDATE conversations SET deleted_at = NOW() WHERE id = %s AND user_id = %s",
+        (conversation_id, user_id) # soft delete, not hard
     )
     conn.commit()
     cursor.close()
@@ -90,12 +91,12 @@ def delete_conversation(conversation_id, user_id):
 
 # ---- User auth ----
 
-def create_user(first_name, last_name, email, password_hash):
+def create_user(first_name, last_name, email, password_hash, department, user_type):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO users (first_name, last_name, email, password_hash) VALUES (%s, %s, %s, %s)",
-        (first_name, last_name, email, password_hash)
+        "INSERT INTO users (first_name, last_name, email, password_hash, department, user_type) VALUES (%s, %s, %s, %s, %s, %s)",
+        (first_name, last_name, email, password_hash, department, user_type)
     )
     new_id = cursor.lastrowid
     conn.commit()
@@ -112,4 +113,86 @@ def get_user_by_email(email):
     conn.close()
     if user:
         user['created_at'] = user['created_at'].isoformat()
+        if user.get('suspended_until'):
+            user['suspended_until'] = user['suspended_until'].isoformat()
     return user
+
+# NEW: funtion to log every login/signup event
+def log_login_event(user_id, event_type):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO login_history (user_id, event_type) VALUES (%s, %s)",
+        (user_id, event_type)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# NEW: Admin can restrict an employee's access for a fixed time or indefinitely
+DURATION_MAP = {
+    '1h': timedelta(hours=1),
+    '4h': timedelta(hours=4),
+    '12h': timedelta(hours=12),
+    '1d': timedelta(days=1),
+    '1w': timedelta(weeks=1),
+}
+
+def suspend_user(employee_id, admin_id, duration_key):
+    conn = get_connection()
+    cursor = conn.cursor()
+    if duration_key == 'indefinite':
+        cursor.execute(
+            "UPDATE users SET is_suspended_indefinite = TRUE, suspended_until = NULL, suspended_by = %s WHERE id = %s",
+            (admin_id, employee_id)
+        )
+    else:
+        until = datetime.now() + DURATION_MAP[duration_key]
+        cursor.execute(
+            "UPDATE users SET is_suspended_indefinite = FALSE, suspended_until = %s, suspended_by = %s WHERE id = %s",
+            (until, admin_id, employee_id)
+        )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+# NEW: Admin can manually lift a suspension "until i turn it off"
+def unsuspend_user(employee_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET is_suspended_indefinite = FALSE, suspended_until = NULL, suspended_by = NULL WHERE id = %s",
+        (employee_id,)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+# NEW: function to check if an employee is restricted from chatting
+def is_user_suspended(user_id) -> dict:
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+         """SELECT suspended_until, is_suspended_indefinite, suspended_by,
+                  (SELECT first_name FROM users WHERE id = u.suspended_by) AS admin_first_name,
+                  (SELECT last_name FROM users WHERE id = u.suspended_by) AS admin_last_name
+           FROM users u WHERE id = %s""",
+        (user_id,)
+    )
+    row = cursor.fetchone()
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    if not row:
+        return {'suspended': False}
+ 
+    if row['is_suspended_indefinite']:
+        admin_name = f"{row['admin_first_name']} {row['admin_last_name']}".strip()
+        return {'suspended': True, 'until': None, 'admin_name': admin_name}
+ 
+    if row['suspended_until'] and row['suspended_until'] > datetime.now():
+        admin_name = f"{row['admin_first_name']} {row['admin_last_name']}".strip()
+        return {'suspended': True, 'until': row['suspended_until'].isoformat(), 'admin_name': admin_name}
+ 
+    return {'suspended': False}
