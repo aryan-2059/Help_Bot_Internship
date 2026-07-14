@@ -42,5 +42,4 @@ Thumbs.db
 # ========================
 documents/
 store.json
-backend/
-admin.py
+backend/admin.py
