@@ -1,6 +1,10 @@
 import React, {useEffect, useState} from 'react';
 
-export default function Auth({onAuthSuccess, showToast }) {
+const DEPARTMENTS = [
+    "HR", "IT", "Legal", "Finance & Accounting", "Marketing", "Customer Service", "Sales", "Administration",
+]
+
+export default function Auth({onAuthSuccess, showToast, onGoToAdminLogin }) {
     const [mode, setMode] = useState('login');
 
     useEffect(()=>{
@@ -32,8 +36,8 @@ export default function Auth({onAuthSuccess, showToast }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formError, setFormError] = useState('');
 
-    const [loginForm, setLoginForm] = useState({email: '', password: ''});
-    const [signupForm, setSignupForm] = useState({firstName: '', lastName: '', email:'', password:''});
+    const [loginForm, setLoginForm] = useState({email: '', password: '', department:''});
+    const [signupForm, setSignupForm] = useState({firstName: '', lastName: '', email:'', password:'',department:''});
 
     const PFC_DOMAIN = '@pfcindia.com';
     const SIGNUP_EMAIL_PATTERN = /^[a-z]+_[a-z]+@pfcindia\.com$/i;
@@ -59,13 +63,18 @@ export default function Auth({onAuthSuccess, showToast }) {
             showError('Enter a valid company email address (e.g. john_doe@pfcindia.com).');
             return;
         }
+        // CHANGE: deptt now a req field
+        if(!loginForm.department) {
+            showError('Please select your department.');
+            return;
+        }
 
         setIsSubmitting(true);
         try {
             const res = await fetch('http://localhost:5000/api/login', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ email, password: loginForm.password }),
+                body: JSON.stringify({ email, password: loginForm.password, department: loginForm.department }),
             });
             const data = await res.json();
             if(!res.ok){
@@ -101,6 +110,11 @@ export default function Auth({onAuthSuccess, showToast }) {
             showError(`Email must match your name: ${expected}`);
             return;
         }
+        // CHANGE: deptt req for signup
+        if(!SIGNUP_EMAIL_PATTERN.department){
+            showError('Please select your department.');
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -112,6 +126,7 @@ export default function Auth({onAuthSuccess, showToast }) {
                 last_name: lastName,
                 email,
                 password: signupForm.password,
+                department: signupForm.department,
             }),
         });
         const data = await res.json();
@@ -168,6 +183,16 @@ export default function Auth({onAuthSuccess, showToast }) {
                             onChange={(e)=>setLoginForm({...loginForm, password: e.target.value})}
                             required />
                         </label>
+                        <label className="auth-label">Department
+                            <select value={loginForm.department} 
+                            className="auth-input"
+                            onChange={(e)=>setLoginForm({...loginForm, department: e.target.value})} required>
+                                <option value="" disabled>Select Department</option>
+                                {DEPARTMENTS.map((d)=>(
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
+                        </label>
                         <button className="auth-submit" type='submit' disabled={isSubmitting}>
                             {isSubmitting ? '...':'Log In'}
                         </button>
@@ -212,6 +237,16 @@ export default function Auth({onAuthSuccess, showToast }) {
                             onChange={(e)=>setSignupForm({...signupForm, password: e.target.value})}
                             required />
                         </label>
+                        <label className="auth-label">Department
+                            <select className="auth-input"
+                            value={signupForm.department}
+                            onChange={(e)=>setSignupForm({...signupForm, department: e.target.value})} required>
+                                <option value="" disabled>Select Department</option>
+                                {DEPARTMENTS.map((d)=>(
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
+                        </label>
                         <button className="auth-submit"
                         type='submit'
                         disabled={isSubmitting}>
@@ -226,6 +261,8 @@ export default function Auth({onAuthSuccess, showToast }) {
                         </p>
                     </form>
                 )}
+                <button type="button" className='admin-toggle-link'
+                onClick={onGoToAdminLogin}> Login as Admin </button>
             </div>
         </div>
     );
