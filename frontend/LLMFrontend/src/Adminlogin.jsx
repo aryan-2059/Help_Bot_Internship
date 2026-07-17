@@ -29,7 +29,7 @@ export default function AdminLogin({onAdminAuthSuccess, onGoBack, showToast}){
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
-                    first_name = form.firstName,
+                    first_name: form.firstName,
                     last_name: form.lastName,
                     email: form.email.trim().toLowerCase(),
                     password: form.password,
