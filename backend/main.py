@@ -234,7 +234,7 @@ def delete_conversation_route(conv_id):
     return {'deleted': conv_id}
 
 # NEW route to check if account suspended or not
-@app.root_path('/api/user/status', methods=['GET'])
+@app.route('/api/user/status', methods=['GET'])
 def user_status():
     user_id = request.args.get('user_id')
     if not user_id:
