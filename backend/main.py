@@ -137,9 +137,12 @@ def login():
     data = request.json
     email = (data.get('email') or '').strip().lower()
     password = data.get('password') or ''
+    department = (data.get('department') or '').strip()
 
     if not LOGIN_EMAIL_PATTERN.match(email):
         return {'error': 'Please use your company email (@pfcindia.com).'}, 400
+    if department not in DEPARTMENTS:  # CHANGE
+        return {'error': f'Department must be one of: {", ".join(DEPARTMENTS)}'}, 400
 
     user = get_user_by_email(email)
     if not user or not check_password_hash(user['password_hash'], password):
@@ -148,6 +151,8 @@ def login():
     # change: this route is now only for employees
     if user['user_type'] != 'employee':
         return {'error': 'Please use the Admin Login option.'}, 403
+    if user['department'] != department:
+        return {'error': 'Selected department does not match your account.'}, 403
     
     log_login_event(user['id'], 'login')
     return {
@@ -250,6 +255,8 @@ def chat():
     conversation_id = data.get('conversation_id')
     user_id = data.get('user_id') # req for suspension check
     
+    if not user_message.strip() or not conversation_id:
+        return Response('', mimetype='text/plain')
     # CHANGE: an employee cannot access chat if suspended
     if user_id:
         status = is_user_suspended(user_id)
