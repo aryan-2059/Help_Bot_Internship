@@ -47,8 +47,7 @@ export default function AdminLogin({onAdminAuthSuccess, onGoBack, showToast}){
         }catch(e){ showError('Could not reach server. Please try again later.');}
         finally{setIsSubmitting(false);}
     };
-    return 
-    (
+    return (
         <div className="auth-page">
             <div className="auth-card">
                 <div className="admin-login-banner">You are signing in as an Admin</div>
