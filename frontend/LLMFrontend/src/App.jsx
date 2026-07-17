@@ -3,6 +3,7 @@ import './App.css';
 import ReactMarkdown from 'react-markdown';
 import Auth from './Auth.jsx';
 import Toast from './Toast.jsx';
+import AdminLogin from './Adminlogin.jsx'
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -40,6 +41,10 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [toast, setToast] = useState({msg: '', type: 'success'});
 
+  // CHANGE: routing btw 3 pre-chat screens | auth -> default, dashboard -> admin db
+  const[authView, setAuthView] = useState('auth');
+  const[dashboardOpen, setDashboardOpen] = useState(false);
+
   const showToast = (msg, type = 'success') =>{
     setToast({msg, type});
   }
@@ -60,6 +65,12 @@ export default function App() {
     localStorage.setItem('pfc_user', JSON.stringify(userData));
   };
 
+  // CHANGE: separate success handlers for admin login
+ const handleAdminAuthSuccess = (adminData) => {
+    setUser(adminData);
+    localStorage.setItem('pfc_user', JSON.stringify(adminData));
+    setAuthView('auth'); // reset so a future logout doesn't land back on admin login
+  };
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('pfc_user');
@@ -67,6 +78,7 @@ export default function App() {
     setConversations([]);
     setCurrentConvId(null);
     setMessages([]);
+    setDashboardOpen(false); // also close dash view on logout
   };
 
   // fetch conversations from backend on component mount
@@ -194,25 +206,15 @@ export default function App() {
     let convId = currentConvId;
     // If there's no current conversation, create a new one
     if (!convId) {
-        try {
           const res = await fetch('http://localhost:5000/api/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: user.id }),
           });
           const data = await res.json();
-          if (!res.ok || !data.id) {
-            showToast(data.error || 'Failed to start a new chat.', 'error');
-            return;
-          }
           convId = data.id;
           setConversations((prev) =>[{ id: convId, title: 'New Chat', created_at: new Date().toISOString() }, ...prev]);
           setCurrentConvId(convId);
-        } catch (error) {
-          console.error('Failed to create conversation:', error);
-          showToast('Could not reach server. Please try again.', 'error');
-          return;
-        }
     }
     setMessages((prev) => [...prev, { sender: 'user', text: userText, time: new Date() }]);
     setInput('');
@@ -223,7 +225,7 @@ export default function App() {
       const response = await fetch('http://localhost:5000/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userText, conversation_id: convId }),
+        body: JSON.stringify({ message: userText, conversation_id: convId, user_id: user.id }),
       });
 
       if (!response.ok) {
@@ -282,6 +284,7 @@ export default function App() {
     }
   };
 
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !isStreaming) {
       e.preventDefault();
@@ -339,6 +342,14 @@ export default function App() {
                 <p className="profile-dropdown__meta">
                   Member since {user.created_at ? new Date(user.created_at).toLocaleDateString([], {month:'short', year:'numeric'}) : '—'}
                 </p>
+                {user.user_type === 'admin' && (
+                  <button
+                    className="profile-dropdown__dashboard"
+                    onClick={() => { setDashboardOpen(true); setProfileOpen(false); }}
+                  >
+                    View Admin Dashboard
+                  </button>
+                )}
                 <button className="profile-dropdown__logout" onClick={handleLogout}>
                   Log Out
                 </button>
@@ -350,17 +361,51 @@ export default function App() {
     </header>
   );
 
+  // change: routing block - shows auth or adminlogin depending on authview
   if(!user){
+    if (authView === 'adminLogin') {
+      return (
+        <div className="app app--auth" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
+          <div className="cursor-glow-layer"/>
+          {header}
+          <AdminLogin
+            onAdminAuthSuccess={handleAdminAuthSuccess}
+            onGoBack={() => setAuthView('auth')}
+            showToast={showToast}
+          />
+          <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
+        </div>
+      );
+    }
      return (
       <div className="app app--auth" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
         <div className="cursor-glow-layer"/>
         {header}
-        <Auth onAuthSuccess={handleAuthSuccess} showToast={showToast} />
+        <Auth
+          onAuthSuccess={handleAuthSuccess}
+          showToast={showToast}
+          onGoToAdminLogin={() => setAuthView('adminLogin')}
+        />
         <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
       </div>
     );
   }
 
+    // placeholder admin dashboard
+    if (dashboardOpen && user.user_type === 'admin') {
+    return (
+      <div className="app" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
+        <div className="cursor-glow-layer"/>
+        {header}
+        <main className="chat-shell" style={{ marginTop: 'calc(var(--header-height) + 24px)' }}>
+          <p>Admin Dashboard for {user.department}</p>
+          <button className="admin-login-goback" onClick={() => setDashboardOpen(false)}>
+            ← Back to Chat
+          </button>
+        </main>
+      </div>
+    );
+  }
   return (
      <div 
       className="app"
@@ -493,3 +538,4 @@ export default function App() {
     </div>
   );
 }
+
