@@ -440,6 +440,7 @@ export default function App() {
     >
       <div className="cursor-glow-layer"/>
       <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
+      <div {...(suspensionStatus.suspended ? { inert: 'true' } : {})}></div>
       {/* Sidebar */}
       {sideBarOpen && (
         <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)}></div>
