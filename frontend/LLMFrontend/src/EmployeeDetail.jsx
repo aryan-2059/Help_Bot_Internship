@@ -20,12 +20,17 @@ export default function EmployeeDetail({ admin, employeeId, onBack, showToast })
     fetch(`http://localhost:5000/api/admin/employees/${employeeId}?admin_id=${admin.id}&department=${encodeURIComponent(admin.department)}`)
       .then((res) => res.json())
       .then((data) => {
+        console.log('[EmployeeDetail] API response:', data);
         if (data.error) {
           showToast(data.error, 'error');
           onBack();
           return;
         }
-        setDetail(data);
+        setDetail({
+          ...data,
+          active_conversations: data.active_conversations || data.active_conversation || [],
+          deleted_conversations: data.deleted_conversations || data.deleted_conversation || [],
+        });
       })
       .catch(() => showToast('Could not load employee details.', 'error'))
       .finally(() => setLoading(false));
