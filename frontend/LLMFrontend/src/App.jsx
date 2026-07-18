@@ -5,6 +5,7 @@ import Auth from './Auth.jsx';
 import Toast from './Toast.jsx';
 import AdminLogin from './Adminlogin.jsx'
 import AdminDashboard from './AdminDashboard.jsx';
+import SuspendedOverlay from './SuspendOverlay.jsx';
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -45,6 +46,9 @@ export default function App() {
   // CHANGE: routing btw 3 pre-chat screens | auth -> default, dashboard -> admin db
   const[authView, setAuthView] = useState('auth');
   const[dashboardOpen, setDashboardOpen] = useState(false);
+
+  // CHANGE: suspension polling state — { suspended: bool, admin_name, until }
+  const [suspensionStatus, setSuspensionStatus] = useState({ suspended: false });
 
   const showToast = (msg, type = 'success') =>{
     setToast({msg, type});
@@ -89,6 +93,23 @@ export default function App() {
       .then((res)=>res.json())
       .then((data)=>setConversations(data.conversations || []))
       .catch((err)=>console.error('Failed to fetch conversations:', err));
+  }, [user]);
+
+  // CHANGE: poll suspension status every 15s while an employee is logged in.
+  // Admins never get suspended, so skip polling for them
+  useEffect(() => {
+    if (!user || user.user_type === 'admin') return;
+ 
+    const checkStatus = () => {
+      fetch(`http://localhost:5000/api/user/status?user_id=${user.id}`)
+        .then((res) => res.json())
+        .then((data) => setSuspensionStatus(data))
+        .catch((err) => console.error('Failed to check suspension status:', err));
+    };
+ 
+    checkStatus(); // check immediately on login/mount, don't wait 15s for the first check
+    const interval = setInterval(checkStatus, 15000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // toggle dark mode
@@ -203,7 +224,7 @@ export default function App() {
   const handleSendMessage = async () => {
     const userText = input.trim();
     if (!userText || isStreaming) return;
-
+    if (suspensionStatus.suspended) return;
     let convId = currentConvId;
     // If there's no current conversation, create a new one
     if (!convId) {
@@ -468,6 +489,9 @@ export default function App() {
       {header}
       
       <main className={`chat-shell ${sideBarOpen ? 'chat-shell--sidebar-open':''}`}>
+        {suspensionStatus.suspended && (
+          <SuspendedOverlay adminName={suspensionStatus.admin_name} />
+        )}
         <div className="messages" role="log" aria-live="polite" aria-relevant="additions">
           {messages.length === 0 && (
             <div className="empty-state">
