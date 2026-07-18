@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import Auth from './Auth.jsx';
 import Toast from './Toast.jsx';
 import AdminLogin from './Adminlogin.jsx'
+import AdminDashboard from './AdminDashboard.jsx';
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -391,17 +392,19 @@ export default function App() {
     );
   }
 
-    // placeholder admin dashboard
+    // admin dashboard
     if (dashboardOpen && user.user_type === 'admin') {
     return (
       <div className="app" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
         <div className="cursor-glow-layer"/>
+        <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
         {header}
         <main className="chat-shell" style={{ marginTop: 'calc(var(--header-height) + 24px)' }}>
-          <p>Admin Dashboard for {user.department}</p>
-          <button className="admin-login-goback" onClick={() => setDashboardOpen(false)}>
-            ← Back to Chat
-          </button>
+          <AdminDashboard
+            admin={user}
+            onBack={() => setDashboardOpen(false)}
+            showToast={showToast}
+          />
         </main>
       </div>
     );
