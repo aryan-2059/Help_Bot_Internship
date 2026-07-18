@@ -197,7 +197,13 @@ export default function App() {
     e.stopPropagation();
     if(!window.confirm('Delete this chat? Cannot be undone')) return;
     try {
-      await fetch(`http://localhost:5000/api/conversations/${id}`, {method: 'DELETE'});
+      // change: user_id missing here, nothing was actually soft-deletd in DB
+      const res = await fetch(`http://localhost:5000/api/conversations/${id}?user_id=${user.id}`, {method: 'DELETE'});
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || 'Failed to delete chat.', 'error');
+        return; // CHANGE: don't touch UI state if the backend call actually failed
+      }
       setConversations((prev)=>prev.filter((c)=>c.id !== id));
       if(id===currentConvId) {
         setCurrentConvId(null);
@@ -205,6 +211,7 @@ export default function App() {
       }
     } catch (e){
       console.error('Failed to delete conversation: ', e);
+      showToast('Could not reach server. Please try again.', 'error')
     }
   }
 
