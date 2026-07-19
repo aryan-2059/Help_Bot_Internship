@@ -8,7 +8,7 @@ from db import (save_message, get_connection, create_conversation, get_conversat
                  get_messages_by_conversations, delete_conversation, conversation_belongs_to_user,
                  create_user, get_user_by_email, log_login_event, is_user_suspended, suspend_user, unsuspend_user, 
                  get_employees_by_department, get_employee_detail, get_login_history, create_ticket, get_tickets_for_admin, get_tickets_for_employee,
-                 update_ticket_status, mark_ticket_seen_by_employee, dismiss_ticket_admin)
+                 get_ticket_history, update_ticket_status, mark_ticket_seen_by_employee)
 from scope_guard import is_in_scope
 from retrieve import retrieve, format_context
 from web_search import web_search
@@ -502,18 +502,15 @@ def acknowledge_ticket(ticket_id):
     return {'acknowledged': True}
 
 
-@app.route('/api/tickets/<int:ticket_id>/dismiss', methods=['POST'])
-def dismiss_ticket(ticket_id):
-    '''Admin views a resolved/revoked ticket -> soft-deletes it from their queue.'''
-    data = request.json or {}
-    admin_id = data.get('admin_id')
-    department = data.get('department')
+@app.route('/api/tickets/history', methods=['GET'])
+def ticket_history():
+    admin_id = request.args.get('admin_id')
+    department = request.args.get('department')
     if not admin_id or not department:
         return {'error': 'admin_id and department are required'}, 400
     if not _verify_admin(admin_id, department):
         return {'error': 'Not authorized'}, 403
-    dismiss_ticket_admin(ticket_id, department)
-    return {'dismissed': True}
+    return {'tickets': get_ticket_history(department)}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
