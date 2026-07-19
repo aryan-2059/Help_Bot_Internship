@@ -273,3 +273,106 @@ def get_login_history(department):
         row['is_new_user'] = row['account_created_at'] > thirty_days_ago
         row['account_created_at'] = row['account_created_at'].isoformat()
     return rows
+
+# ---- Tickets (SLA system) ----
+
+def create_ticket(employee_id, employee_name, employee_email, department, details, priority):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """INSERT INTO tickets (employee_id, employee_name, employee_email, department, details, priority)
+           VALUES (%s, %s, %s, %s, %s, %s)""",
+        (employee_id, employee_name, employee_email, department, details, priority)
+    )
+    new_id = cursor.lastrowid
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return new_id
+
+
+def get_tickets_for_employee(employee_id):
+    '''Everything except tickets the employee has already acknowledged post-resolution.'''
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """SELECT * FROM tickets
+           WHERE employee_id = %s AND employee_seen_resolution = FALSE
+           ORDER BY id DESC""",
+        (employee_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    for r in rows:
+        r['created_at'] = r['created_at'].isoformat()
+        if r['resolved_at']:
+            r['resolved_at'] = r['resolved_at'].isoformat()
+    return rows
+
+
+def get_tickets_for_admin(department):
+    '''Everything except tickets the admin has dismissed after final state.'''
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """SELECT * FROM tickets
+           WHERE department = %s AND admin_dismissed = FALSE
+           ORDER BY FIELD(status, 'open','accepted','resolved','revoked'), id DESC""",
+        (department,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    for r in rows:
+        r['created_at'] = r['created_at'].isoformat()
+        if r['resolved_at']:
+            r['resolved_at'] = r['resolved_at'].isoformat()
+    return rows
+
+
+def update_ticket_status(ticket_id, department, status, admin_message=None):
+    '''department passed in to scope the update — an admin from HR can't touch an IT ticket by guessing an id.'''
+    conn = get_connection()
+    cursor = conn.cursor()
+    if status in ('resolved', 'revoked'):
+        cursor.execute(
+            """UPDATE tickets SET status = %s, admin_message = %s, resolved_at = NOW()
+               WHERE id = %s AND department = %s""",
+            (status, admin_message, ticket_id, department)
+        )
+    else:
+        cursor.execute(
+            """UPDATE tickets SET status = %s, admin_message = %s
+               WHERE id = %s AND department = %s""",
+            (status, admin_message, ticket_id, department)
+        )
+    affected = cursor.rowcount
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return affected > 0
+
+
+def mark_ticket_seen_by_employee(ticket_id, employee_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE tickets SET employee_seen_resolution = TRUE WHERE id = %s AND employee_id = %s AND status IN ('resolved','revoked')",
+        (ticket_id, employee_id)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+def dismiss_ticket_admin(ticket_id, department):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE tickets SET admin_dismissed = TRUE WHERE id = %s AND department = %s AND status IN ('resolved','revoked')",
+        (ticket_id, department)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
