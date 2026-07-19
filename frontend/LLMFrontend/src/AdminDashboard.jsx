@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import EmployeeDetail from './EmployeeDetail.jsx';
+const STATUS_LABELS = {
+  open: 'Open',
+  accepted: 'Being Resolved',
+  resolved: 'Resolved',
+  revoked: 'Revoked',
+};
 
 export default function AdminDashboard({ admin, onBack, showToast }) {
   const [tab, setTab] = useState('employees'); // 'employees' | 'history'
@@ -10,6 +16,55 @@ export default function AdminDashboard({ admin, onBack, showToast }) {
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+
+const [tickets, setTickets] = useState([]);
+const [loadingTickets, setLoadingTickets] = useState(false);
+const [ticketsLoaded, setTicketsLoaded] = useState(false);
+const [actingTicketId, setActingTicketId] = useState(null);
+
+const loadTickets = () => {
+  setLoadingTickets(true);
+  fetch(`http://localhost:5000/api/tickets?admin_id=${admin.id}&department=${encodeURIComponent(admin.department)}`)
+    .then((res) => res.json())
+    .then((data) => { setTickets(data.tickets || []); setTicketsLoaded(true); })
+    .catch(() => showToast('Could not load tickets.', 'error'))
+    .finally(() => setLoadingTickets(false));
+};
+
+const openTicketsTab = () => {
+  setTab('tickets');
+  if (!ticketsLoaded) loadTickets();
+};
+
+const handleTicketAction = async (ticketId, status) => {
+  let admin_message = null;
+  if (status === 'resolved' || status === 'revoked') {
+    admin_message = window.prompt('Optional message to the employee (leave blank to skip):') || null;
+  }
+  setActingTicketId(ticketId);
+  try {
+    const res = await fetch(`http://localhost:5000/api/tickets/${ticketId}/status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ admin_id: admin.id, department: admin.department, status, admin_message }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Action failed.', 'error'); return; }
+    showToast('Ticket updated.', 'success');
+    loadTickets();
+  } catch { showToast('Could not reach server.', 'error'); }
+  finally { setActingTicketId(null); }
+};
+
+// resolved/revoked tickets shown to admin get dismissed only once admin explicitly clicks "Dismiss" — mirrors the employee's acknowledge flow
+const handleDismiss = async (ticketId) => {
+  await fetch(`http://localhost:5000/api/tickets/${ticketId}/dismiss`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ admin_id: admin.id, department: admin.department }),
+  });
+  loadTickets();
+};
 
   useEffect(() => {
     fetch(`http://localhost:5000/api/admin/employees?admin_id=${admin.id}&department=${encodeURIComponent(admin.department)}`)
@@ -70,6 +125,9 @@ export default function AdminDashboard({ admin, onBack, showToast }) {
         >
           Login History
         </button>
+        <button className={`admin-dash__tab ${tab === 'tickets' ? 'admin-dash__tab--active' : ''}`} onClick={openTicketsTab}>
+          Tickets ({tickets.filter(t => t.status === 'open').length} open)
+        </button>
       </div>
 
       {tab === 'employees' && (
@@ -117,6 +175,42 @@ export default function AdminDashboard({ admin, onBack, showToast }) {
           )}
         </div>
       )}
+      {tab === 'tickets' && (
+        loadingTickets ? <p className="admin-dash__loading">Loading tickets…</p> :
+        tickets.length === 0 ? <p className="employee-detail__empty">No tickets.</p> :
+        <div className="employee-detail__chat-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {tickets.map
+            (
+              (t) => 
+              (
+                <div key={t.id} className="admin-dash__history-row" style={{ gridTemplateColumns: '1fr', display: 'block', padding: 14 }}>
+                  <p><strong>#{t.id} — {t.employee_name}</strong> ({t.employee_email}) · Priority: {t.priority}</p>
+                  <p>{t.details}</p>
+                  <p className="employee-detail__meta">Status: {STATUS_LABELS[t.status]} · {new Date(t.created_at).toLocaleDateString('en-GB')}</p>
+                  {t.status === 'open' && (
+                    <button onClick={() => handleTicketAction(t.id, 'accepted')} disabled={actingTicketId === t.id}>Accept</button>
+                  )}
+                  {
+                    (t.status === 'open' || t.status === 'accepted') && 
+                    (
+                      <>
+                        <button onClick={() => handleTicketAction(t.id, 'resolved')} disabled={actingTicketId === t.id}>Resolve</button>
+                        <button onClick={() => handleTicketAction(t.id, 'revoked')} disabled={actingTicketId === t.id}>Revoke</button>
+                      </>
+                    )
+                  }
+                  {
+                    (t.status === 'resolved' || t.status === 'revoked') && 
+                    (
+                    <button onClick={() => handleDismiss(t.id)}>Dismiss</button>
+                    )
+                  }
+                </div>
+              )
+            )
+          }
+  </div>
+)}
     </div>
   );
 }
