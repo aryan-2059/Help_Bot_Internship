@@ -21,6 +21,9 @@ const [tickets, setTickets] = useState([]);
 const [loadingTickets, setLoadingTickets] = useState(false);
 const [ticketsLoaded, setTicketsLoaded] = useState(false);
 const [actingTicketId, setActingTicketId] = useState(null);
+const [ticketHistory, setTicketHistory] = useState([]);
+const [loadingTicketHistory, setLoadingTicketHistory] = useState(false);
+const [ticketHistoryLoaded, setTicketHistoryLoaded] = useState(false);
 
 const loadTickets = () => {
   setLoadingTickets(true);
@@ -34,6 +37,16 @@ const loadTickets = () => {
 const openTicketsTab = () => {
   setTab('tickets');
   if (!ticketsLoaded) loadTickets();
+};
+const openTicketHistoryTab = () => {
+  setTab('ticketHistory');
+  if (ticketHistoryLoaded) return;
+  setLoadingTicketHistory(true);
+  fetch(`http://localhost:5000/api/tickets/history?admin_id=${admin.id}&department=${encodeURIComponent(admin.department)}`)
+    .then((res) => res.json())
+    .then((data) => { setTicketHistory(data.tickets || []); setTicketHistoryLoaded(true); })
+    .catch(() => showToast('Could not load ticket history.', 'error'))
+    .finally(() => setLoadingTicketHistory(false));
 };
 
 const handleTicketAction = async (ticketId, status) => {
@@ -56,15 +69,7 @@ const handleTicketAction = async (ticketId, status) => {
   finally { setActingTicketId(null); }
 };
 
-// resolved/revoked tickets shown to admin get dismissed only once admin explicitly clicks "Dismiss" — mirrors the employee's acknowledge flow
-const handleDismiss = async (ticketId) => {
-  await fetch(`http://localhost:5000/api/tickets/${ticketId}/dismiss`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ admin_id: admin.id, department: admin.department }),
-  });
-  loadTickets();
-};
+
 
   useEffect(() => {
     fetch(`http://localhost:5000/api/admin/employees?admin_id=${admin.id}&department=${encodeURIComponent(admin.department)}`)
@@ -175,7 +180,8 @@ const handleDismiss = async (ticketId) => {
           )}
         </div>
       )}
-      {tab === 'tickets' && (
+      {
+        tab === 'tickets' && (
         loadingTickets ? <p className="admin-dash__loading">Loading tickets…</p> :
         tickets.length === 0 ? <p className="employee-detail__empty">No tickets.</p> :
         <div className="employee-detail__chat-list" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -199,18 +205,35 @@ const handleDismiss = async (ticketId) => {
                       </>
                     )
                   }
-                  {
-                    (t.status === 'resolved' || t.status === 'revoked') && 
-                    (
-                    <button onClick={() => handleDismiss(t.id)}>Dismiss</button>
-                    )
-                  }
                 </div>
               )
             )
           }
-  </div>
-)}
+          </div>
+        )     
+      }
+      { tab === 'ticketHistory' && 
+        (
+          loadingTicketHistory ? <p className="admin-dash__loading">Loading history…</p> :
+          ticketHistory.length === 0 ? <p className="employee-detail__empty">No resolved tickets yet.</p> :
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            { ticketHistory.map
+              ((t) => 
+                (
+                  <div key={t.id} className="admin-dash__history-row" style={{ gridTemplateColumns: '1fr', display: 'block', padding: 14 }}>
+                  <p><strong>#{t.id} — {t.employee_name}</strong> ({t.employee_email}) · Priority: {t.priority}</p>
+                  <p>{t.details}</p>
+                  <p className="employee-detail__meta">
+                  {STATUS_LABELS[t.status]} on {new Date(t.resolved_at).toLocaleDateString('en-GB')}
+                  {t.admin_message && ` · Note: ${t.admin_message}`}
+                  </p>
+                  </div>
+                )
+              )
+            }
+          </div>
+        )
+      }
     </div>
   );
 }
