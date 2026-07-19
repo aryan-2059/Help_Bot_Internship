@@ -7,7 +7,8 @@ import ollama
 from db import (save_message, get_connection, create_conversation, get_conversations,
                  get_messages_by_conversations, delete_conversation, conversation_belongs_to_user,
                  create_user, get_user_by_email, log_login_event, is_user_suspended, suspend_user, unsuspend_user, 
-                 get_employees_by_department, get_employee_detail, get_login_history)
+                 get_employees_by_department, get_employee_detail, get_login_history, create_ticket, get_tickets_for_admin, get_tickets_for_employee,
+                 update_ticket_status, mark_ticket_seen_by_employee, dismiss_ticket_admin)
 from scope_guard import is_in_scope
 from retrieve import retrieve, format_context
 from web_search import web_search
@@ -428,6 +429,91 @@ def admin_login_history():
     if not _verify_admin(admin_id, department):
         return {'error': 'Not authorized'}, 403
     return {'history': get_login_history(department)}
+
+# NEW: SLA system
+@app.route('/api/tickets', methods=['POST'])
+def raise_ticket():
+    data = request.json or {}
+    employee_id = data.get('employee_id')
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    department = (data.get('department') or '').strip()
+    details = (data.get('details') or '').strip()
+    priority = (data.get('priority') or '').strip()
+
+    if not all([employee_id, name, email, department, details, priority]):
+        return {'error': 'All fields are required.'}, 400
+    if department not in DEPARTMENTS:
+        return {'error': f'Department must be one of: {", ".join(DEPARTMENTS)}'}, 400
+    if priority not in ('low', 'medium', 'high'):
+        return {'error': 'Priority must be low, medium, or high.'}, 400
+    if not LOGIN_EMAIL_PATTERN.match(email):
+        return {'error': 'Please use your company email (@pfcindia.com).'}, 400
+
+    ticket_id = create_ticket(employee_id, name, email, department, details, priority)
+    return {'id': ticket_id}
+
+
+@app.route('/api/tickets', methods=['GET'])
+def list_tickets():
+    '''Employee view: ?employee_id=X. Admin view: ?admin_id=X&department=Y (department-scoped).'''
+    employee_id = request.args.get('employee_id')
+    admin_id = request.args.get('admin_id')
+    department = request.args.get('department')
+
+    if employee_id:
+        return {'tickets': get_tickets_for_employee(employee_id)}
+    if admin_id and department:
+        if not _verify_admin(admin_id, department):
+            return {'error': 'Not authorized'}, 403
+        return {'tickets': get_tickets_for_admin(department)}
+    return {'error': 'employee_id, or admin_id + department, is required'}, 400
+
+
+@app.route('/api/tickets/<int:ticket_id>/status', methods=['POST'])
+def set_ticket_status(ticket_id):
+    data = request.json or {}
+    admin_id = data.get('admin_id')
+    department = data.get('department')
+    status = data.get('status')
+    admin_message = (data.get('admin_message') or '').strip() or None
+
+    if not admin_id or not department or not status:
+        return {'error': 'admin_id, department, and status are required'}, 400
+    if status not in ('accepted', 'resolved', 'revoked'):
+        return {'error': 'Invalid status.'}, 400
+    if not _verify_admin(admin_id, department):
+        return {'error': 'Not authorized'}, 403
+
+    ok = update_ticket_status(ticket_id, department, status, admin_message)
+    if not ok:
+        return {'error': 'Ticket not found in this department.'}, 404
+    return {'updated': True}
+
+
+@app.route('/api/tickets/<int:ticket_id>/acknowledge', methods=['POST'])
+def acknowledge_ticket(ticket_id):
+    '''Employee views a resolved/revoked ticket -> soft-deletes it from their side.'''
+    data = request.json or {}
+    employee_id = data.get('employee_id')
+    if not employee_id:
+        return {'error': 'employee_id is required'}, 400
+    mark_ticket_seen_by_employee(ticket_id, employee_id)
+    return {'acknowledged': True}
+
+
+@app.route('/api/tickets/<int:ticket_id>/dismiss', methods=['POST'])
+def dismiss_ticket(ticket_id):
+    '''Admin views a resolved/revoked ticket -> soft-deletes it from their queue.'''
+    data = request.json or {}
+    admin_id = data.get('admin_id')
+    department = data.get('department')
+    if not admin_id or not department:
+        return {'error': 'admin_id and department are required'}, 400
+    if not _verify_admin(admin_id, department):
+        return {'error': 'Not authorized'}, 403
+    dismiss_ticket_admin(ticket_id, department)
+    return {'dismissed': True}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
