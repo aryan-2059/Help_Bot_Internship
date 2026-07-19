@@ -6,6 +6,7 @@ import Toast from './Toast.jsx';
 import AdminLogin from './Adminlogin.jsx'
 import AdminDashboard from './AdminDashboard.jsx';
 import SuspendedOverlay from './SuspendOverlay.jsx';
+import TicketPage from './TicketPage.jsx';
 
 const MAX_TEXTAREA_HEIGHT = 160;
 
@@ -49,6 +50,8 @@ export default function App() {
 
   // CHANGE: suspension polling state — { suspended: bool, admin_name, until }
   const [suspensionStatus, setSuspensionStatus] = useState({ suspended: false });
+
+  const[ticketsOpen, setTicketsOpen] = useState(false);
 
   const showToast = (msg, type = 'success') =>{
     setToast({msg, type});
@@ -437,6 +440,18 @@ export default function App() {
       </div>
     );
   }
+  if (ticketsOpen) {
+  return (
+    <div className="app" style={{ '--mouse-x': `${coords.x}px`, '--mouse-y': `${coords.y}px` }}>
+      <div className="cursor-glow-layer" />
+      <Toast msg={toast.msg} type={toast.type} onDone={dismissToast} />
+      {header}
+      <main className="chat-shell" style={{ marginTop: 'calc(var(--header-height) + 24px)' }}>
+        <TicketPage user={user} onBack={() => setTicketsOpen(false)} showToast={showToast} />
+      </main>
+    </div>
+  );
+}
   return (
      <div 
       className="app"
@@ -462,6 +477,9 @@ export default function App() {
             onClick={handleNewChat}
           >
             + New Chat
+          </button>
+          <button className="sidebar__new-chat" onClick={() => setTicketsOpen(true)} style={{ marginTop: 8 }}>
+            🎫 Raise Ticket
           </button>
         </div>
         <div className = 'sidebar__list'>
