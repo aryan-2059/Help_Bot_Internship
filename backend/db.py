@@ -312,13 +312,13 @@ def get_tickets_for_employee(employee_id):
 
 
 def get_tickets_for_admin(department):
-    '''Everything except tickets the admin has dismissed after final state.'''
+    '''Active queue only — open + accepted. Resolved/revoked move to history automatically.'''
     conn = get_connection()
     cursor = conn.cursor(dictionary=True)
     cursor.execute(
         """SELECT * FROM tickets
-           WHERE department = %s AND admin_dismissed = FALSE
-           ORDER BY FIELD(status, 'open','accepted','resolved','revoked'), id DESC""",
+           WHERE department = %s AND status IN ('open','accepted')
+           ORDER BY FIELD(status, 'open','accepted'), id DESC""",
         (department,)
     )
     rows = cursor.fetchall()
@@ -326,13 +326,28 @@ def get_tickets_for_admin(department):
     conn.close()
     for r in rows:
         r['created_at'] = r['created_at'].isoformat()
-        if r['resolved_at']:
-            r['resolved_at'] = r['resolved_at'].isoformat()
     return rows
 
+def get_ticket_history(department):
+    '''Persistent, read-only — never soft-deleted.'''
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute(
+        """SELECT * FROM tickets
+           WHERE department = %s AND status IN ('resolved','revoked')
+           ORDER BY resolved_at DESC""",
+        (department,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    for r in rows:
+        r['created_at'] = r['created_at'].isoformat()
+        r['resolved_at'] = r['resolved_at'].isoformat()
+    return rows
 
 def update_ticket_status(ticket_id, department, status, admin_message=None):
-    '''department passed in to scope the update — an admin from HR can't touch an IT ticket by guessing an id.'''
+    '''resolved/revoked auto-exit the active queue by virtue of status alone — no separate dismiss step needed.'''
     conn = get_connection()
     cursor = conn.cursor()
     if status in ('resolved', 'revoked'):
@@ -360,18 +375,6 @@ def mark_ticket_seen_by_employee(ticket_id, employee_id):
     cursor.execute(
         "UPDATE tickets SET employee_seen_resolution = TRUE WHERE id = %s AND employee_id = %s AND status IN ('resolved','revoked')",
         (ticket_id, employee_id)
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-
-def dismiss_ticket_admin(ticket_id, department):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE tickets SET admin_dismissed = TRUE WHERE id = %s AND department = %s AND status IN ('resolved','revoked')",
-        (ticket_id, department)
     )
     conn.commit()
     cursor.close()
